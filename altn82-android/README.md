@@ -5,26 +5,10 @@
 
 ---
 
-## 📐 Organisation du module
-
-| Séance | Thème | Concepts clés |
-|---|---|---|
-| **TP 1** | Ma première application connectée | Compose, State, LazyColumn, API REST |
-| **TP 2** | Bordeaux VéloLib | Retrofit, données réelles, filtrage temps réel |
-| **TP 3** | MVVM & Navigation | ViewModel, StateFlow, NavHost, Géolocalisation |
-| **TP 4** | Cartographie OSM | osmdroid, marqueurs, BottomNavigationBar |
-| **Projet** | NanoOrbit Ground Control | Toutes les notions + Room + cohérence ALTN83 |
-
----
-
 ## 📁 Contenu de ce dossier
 
 ### `sujets/`
-- **`ALTN82_TP01_Android.pdf`** — Installation, Compose, navigation, API
-- **`ALTN82_TP02_BordeauxVeloLib.pdf`** — Retrofit, LazyColumn, données réelles
-- **`ALTN82_TP03_MVVM_Navigation.pdf`** — Architecture MVVM, NavHost, GPS
-- **`ALTN82_TP04_Cartographie.pdf`** — osmdroid, marqueurs, BottomNav
-- **`ALTN82_NanoOrbit_Projet_Android.pdf`** — Sujet du projet fil rouge (3 phases)
+- **`ALTN82_NanoOrbit_GroundControl_Projet.pdf`** — Sujet du projet (3 phases)
 
 ### `starter/`
 Projet Android Studio vide pré-configuré avec :
