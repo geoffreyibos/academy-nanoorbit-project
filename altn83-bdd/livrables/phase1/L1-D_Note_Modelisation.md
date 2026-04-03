@@ -31,53 +31,38 @@ RG-G04 impose qu'une station appartienne à un seul centre — on aurait pu simp
 
 ## Partie 2 — Architecture distribuée
 
-### Contexte
+### Q1 — Tables strictement locales
 
-Trois nœuds, un par centre de contrôle :
+Les tables **STATION_SOL**, **AFFECTATION_STATION** et **FENETRE_COM** sont strictement locales à chaque centre de contrôle.
 
-| Nœud | Ville | Région | Station |
-|---|---|---|---|
-| CTR-001 | Paris | Europe | GS-TLS-01 |
-| CTR-002 | Houston | Amériques | GS-KIR-01 |
-| CTR-003 | Singapour | Asie-Pacifique | GS-SGP-01 |
+Une station sol est un équipement physique ancré dans une région : Paris n'a aucune raison d'accéder aux données opérationnelles de la station de Singapour. Les fenêtres de communication sont planifiées et exécutées par le centre qui gère la station concernée : ce sont des données de production locale, pas des données partagées. Les partager en temps réel n'apporterait rien et créerait inutilement du trafic réseau inter-sites.
 
 ---
 
-### Q1 — Données globales vs locales
+### Q2 — Tables globales et synchronisation
 
-- **Globales** (partagées entre tous les centres) : ORBITE, INSTRUMENT, SATELLITE, MISSION, EMBARQUEMENT, PARTICIPATION
-- **Locales** (propres à chaque centre) : CENTRE_CONTROLE, STATION_SOL, AFFECTATION_STATION, FENETRE_COM
+Les tables **ORBITE**, **INSTRUMENT**, **SATELLITE**, **MISSION**, **EMBARQUEMENT** et **PARTICIPATION** doivent être accessibles depuis tous les centres.
 
-Les données de catalogue (orbites, instruments) et les données de mission sont globales car elles sont consultées par tous les opérateurs. Les données opérationnelles du quotidien (passages, stations) sont locales car chaque centre ne gère que ses propres équipements.
+Ces tables contiennent les données de référence du système : la configuration des satellites, le catalogue des instruments, les missions en cours. Un opérateur à Houston doit pouvoir consulter l'état d'un satellite géré depuis Paris, ou vérifier qu'une mission est encore active avant d'y inscrire un satellite.
 
----
-
-### Q2 — Fragmentation
-
-Les données locales sont fragmentées **horizontalement par région** :
-
-- STATION_SOL et AFFECTATION_STATION → stockées sur le nœud du centre auquel la station est rattachée
-- FENETRE_COM → fragmentée par `code_station`, donc naturellement distribuée sur le nœud qui gère cette station
-- CENTRE_CONTROLE → chaque nœud héberge uniquement sa propre ligne
-
-Les données globales sont **répliquées** sur les 3 nœuds (voir Q3).
+On propose une **réplication en lecture** sur les 3 nœuds, avec un nœud maître (Paris) qui centralise les écritures. Les mises à jour sont propagées de façon asynchrone. Pour les changements critiques comme le passage d'un satellite à 'Désorbité', la propagation doit être synchrone pour éviter des insertions invalides sur les autres sites.
 
 ---
 
-### Q3 — Réplication
+### Q3 — Continuité de service pour Singapour
 
-Les tables globales sont répliquées en **réplication asynchrone** sur les 3 nœuds. Paris est désigné nœud maître pour les écritures. Les lectures sont satisfaites localement, ce qui réduit la latence pour les opérations courantes (consultation du catalogue, affichage des missions).
+Si le serveur central est indisponible, Singapour doit pouvoir continuer à planifier des fenêtres pour ses stations locales.
 
-Les mises à jour critiques comme le changement de statut d'un satellite ('Désorbité') doivent être propagées rapidement sur tous les nœuds pour éviter des incohérences opérationnelles.
+On propose une **fragmentation horizontale** : chaque centre héberge localement ses tables STATION_SOL, AFFECTATION_STATION et FENETRE_COM. La planification d'une fenêtre n'a besoin que des données locales (la station, ses créneaux déjà occupés) et d'une copie locale de SATELLITE (répliquée). Singapour peut donc fonctionner en mode dégradé en s'appuyant sur sa réplique locale de SATELLITE et ses propres tables FENETRE_COM, sans dépendre du nœud central.
+
+La réconciliation avec les autres sites se fait à la reconnexion.
 
 ---
 
-### Q4 — Problèmes de cohérence anticipés
+### Q4 — Risques de cohérence
 
-Trois situations peuvent poser problème :
+**Scénario 1 — Statut satellite incohérent**  
+Paris met à jour le statut de SAT-003 à 'Désorbité'. Quelques secondes plus tard, avant que la réplication soit arrivée à Houston, un opérateur houston insère une nouvelle fenêtre de communication pour ce satellite. Le trigger `trg_valider_fenetre` vérifie le statut localement — mais la copie locale de SATELLITE n'est pas encore à jour. La fenêtre est créée, ce qui est une erreur opérationnelle.
 
-1. **Statut satellite** : si un satellite passe à 'Désorbité' sur Paris mais que Houston n'a pas encore reçu la mise à jour, Houston pourrait planifier une fenêtre invalide. → Propagation synchrone du statut avant tout INSERT dans FENETRE_COM.
-
-2. **Chevauchement temporel inter-sites** : deux centres pourraient planifier en même temps une fenêtre pour le même satellite. → La vérification de chevauchement doit s'appuyer sur une vue consolidée de FENETRE_COM, pas seulement les données locales.
-
-3. **Mission terminée** : si Paris clôture une mission mais que Singapour n'a pas encore synchronisé, Singapour peut encore ajouter des satellites à cette mission. → Le statut de MISSION doit être vérifié sur la version répliquée à jour.
+**Scénario 2 — Chevauchement temporel inter-sites**  
+SAT-002 passe au-dessus de deux stations en même temps (trajectoire en limite de zone). Paris planifie une fenêtre sur GS-TLS-01 et Singapour planifie en parallèle une fenêtre sur GS-SGP-01 pour le même satellite, au même créneau. Chaque trigger de chevauchement ne vérifie que la table FENETRE_COM locale — le chevauchement n'est pas détecté. Le satellite se retrouve avec deux fenêtres simultanées, ce qui est physiquement impossible.
