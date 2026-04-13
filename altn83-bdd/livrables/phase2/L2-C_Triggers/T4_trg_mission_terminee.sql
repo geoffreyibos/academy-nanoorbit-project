@@ -6,10 +6,6 @@
 -- Objectif : Bloquer tout satellite Désorbité dans une mission (RG-S06)
 --            et bloquer l'ajout d'un satellite dans une mission
 --            dont le statut est 'Terminée' (RG-M04)
---
--- Note L1-A (catégorie 3) : RG-S06 exige un trigger BEFORE INSERT
--- sur FENETRE_COM ET sur PARTICIPATION. T1 couvre FENETRE_COM ;
--- T4 couvre PARTICIPATION pour les deux règles.
 -- ============================================================
 
 CREATE OR REPLACE TRIGGER trg_mission_terminee
