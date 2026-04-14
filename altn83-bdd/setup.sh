@@ -43,7 +43,8 @@ until docker inspect --format='{{.State.Health.Status}}' "$CONTAINER" 2>/dev/nul
     sleep 15
 done
 
-echo "  Base prête."
+echo "  Base prête. Stabilisation (15s)..."
+sleep 15
 
 # ============================================================
 # 3. Création de l'utilisateur NANOORBIT_ADMIN
@@ -51,31 +52,18 @@ echo "  Base prête."
 echo ""
 echo "=== 3/4 Création de l'utilisateur $APP_USER ==="
 
+
+# L'image gvenzl crée automatiquement APP_USER avec des privilèges de base.
+# On ajoute ici les privilèges supplémentaires nécessaires.
 docker exec -i "$CONTAINER" sqlplus -s "sys/$SYS_PASS@localhost:1521/$PDB as sysdba" << SQL
-SET SERVEROUTPUT ON
-
-BEGIN
-    EXECUTE IMMEDIATE 'DROP USER NANOORBIT_ADMIN CASCADE';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
-/
-
-CREATE USER NANOORBIT_ADMIN
-    IDENTIFIED BY NanoOrbit2025
-    DEFAULT TABLESPACE USERS
-    TEMPORARY TABLESPACE TEMP
-    QUOTA UNLIMITED ON USERS;
-
-GRANT CREATE SESSION   TO NANOORBIT_ADMIN;
 GRANT CREATE TABLE     TO NANOORBIT_ADMIN;
 GRANT CREATE SEQUENCE  TO NANOORBIT_ADMIN;
 GRANT CREATE TRIGGER   TO NANOORBIT_ADMIN;
 GRANT CREATE PROCEDURE TO NANOORBIT_ADMIN;
 GRANT CREATE VIEW      TO NANOORBIT_ADMIN;
 GRANT CREATE TYPE      TO NANOORBIT_ADMIN;
-
-PROMPT Utilisateur NANOORBIT_ADMIN créé.
+GRANT UNLIMITED TABLESPACE TO NANOORBIT_ADMIN;
+PROMPT Privileges accordes a NANOORBIT_ADMIN.
 EXIT;
 SQL
 
@@ -87,55 +75,18 @@ echo "  Utilisateur créé."
 echo ""
 echo "=== 4/4 Exécution des scripts Phase 2 ==="
 
-docker exec -i "$CONTAINER" sqlplus -s "$APP_USER/$APP_PASS@localhost:1521/$PDB" << SQL
-SET SERVEROUTPUT ON
-SET ECHO ON
-
-PROMPT ============================================================
-PROMPT ÉTAPE 1 — DDL
-PROMPT ============================================================
-@$SCRIPTS_DIR/L2-A_DDL/01_ORBITE.sql
-@$SCRIPTS_DIR/L2-A_DDL/02_CENTRE_CONTROLE.sql
-@$SCRIPTS_DIR/L2-A_DDL/03_SATELLITE.sql
-@$SCRIPTS_DIR/L2-A_DDL/04_INSTRUMENT.sql
-@$SCRIPTS_DIR/L2-A_DDL/05_EMBARQUEMENT.sql
-@$SCRIPTS_DIR/L2-A_DDL/06_STATION_SOL.sql
-@$SCRIPTS_DIR/L2-A_DDL/07_AFFECTATION_STATION.sql
-@$SCRIPTS_DIR/L2-A_DDL/08_MISSION.sql
-@$SCRIPTS_DIR/L2-A_DDL/09_FENETRE_COM.sql
-@$SCRIPTS_DIR/L2-A_DDL/10_PARTICIPATION.sql
-@$SCRIPTS_DIR/L2-A_DDL/11_HISTORIQUE_STATUT.sql
-
-PROMPT ============================================================
-PROMPT ÉTAPE 2 — DML
-PROMPT ============================================================
-@$SCRIPTS_DIR/L2-B_DML/01_ORBITE.sql
-@$SCRIPTS_DIR/L2-B_DML/02_CENTRE_CONTROLE.sql
-@$SCRIPTS_DIR/L2-B_DML/03_SATELLITE.sql
-@$SCRIPTS_DIR/L2-B_DML/04_INSTRUMENT.sql
-@$SCRIPTS_DIR/L2-B_DML/05_EMBARQUEMENT.sql
-@$SCRIPTS_DIR/L2-B_DML/06_STATION_SOL.sql
-@$SCRIPTS_DIR/L2-B_DML/07_AFFECTATION_STATION.sql
-@$SCRIPTS_DIR/L2-B_DML/08_MISSION.sql
-@$SCRIPTS_DIR/L2-B_DML/09_FENETRE_COM.sql
-@$SCRIPTS_DIR/L2-B_DML/10_PARTICIPATION.sql
-
-PROMPT ============================================================
-PROMPT ÉTAPE 3 — Triggers
-PROMPT ============================================================
-@$SCRIPTS_DIR/L2-C_Triggers/T1_trg_valider_fenetre.sql
-@$SCRIPTS_DIR/L2-C_Triggers/T2_trg_no_chevauchement.sql
-@$SCRIPTS_DIR/L2-C_Triggers/T3_trg_volume_realise.sql
-@$SCRIPTS_DIR/L2-C_Triggers/T4_trg_mission_terminee.sql
-@$SCRIPTS_DIR/L2-C_Triggers/T5_trg_historique_statut.sql
-
-PROMPT ============================================================
-PROMPT ÉTAPE 4 — Contrôle
-PROMPT ============================================================
-@$SCRIPTS_DIR/L2-D_Controle/controle_schema.sql
-
-EXIT;
-SQL
+# On appelle sqlplus directement avec le fichier maître (@@).
+# Passer des @file dans un heredoc casse le buffer multi-lignes
+# de SQL*Plus — les CREATE TABLE perdent leurs contraintes.
+if ! docker exec "$CONTAINER" bash -c \
+    "cd $SCRIPTS_DIR && sqlplus $APP_USER/$APP_PASS@localhost:1521/$PDB @run_phase2.sql"; then
+    echo ""
+    echo "============================================================"
+    echo "ERREUR : L'exécution SQL a échoué."
+    echo "Consultez la sortie ci-dessus pour identifier le problème."
+    echo "============================================================"
+    exit 1
+fi
 
 # ============================================================
 # Résumé
