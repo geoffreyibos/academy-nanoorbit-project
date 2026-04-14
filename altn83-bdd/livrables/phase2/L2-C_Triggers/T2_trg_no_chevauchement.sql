@@ -3,16 +3,6 @@
 -- Niveau  : 1 (Obligatoire)
 -- Événement : FOR INSERT OR UPDATE ON FENETRE_COM (Compound Trigger)
 -- Règles  : RG-F02 (chevauchement satellite), RG-F03 (chevauchement station)
---
--- CORRECTION : Le bug original utilisait id_fenetre (GENERATED ALWAYS AS
--- IDENTITY) pour exclure la ligne courante dans AFTER STATEMENT.
--- Comme id_fenetre vaut NULL dans BEFORE EACH ROW (la séquence n'est pas
--- encore résolue), la condition "id_fenetre != NULL" est toujours UNKNOWN
--- en SQL → la nouvelle ligne n'était jamais exclue → faux positif systématique.
---
--- FIX : On exclut la ligne courante via sa clé naturelle unique :
---   (id_satellite, code_station, datetime_debut)
--- Ces trois valeurs sont connues dès BEFORE EACH ROW et ne sont jamais NULL.
 -- ============================================================
 
 CREATE OR REPLACE TRIGGER trg_no_chevauchement
