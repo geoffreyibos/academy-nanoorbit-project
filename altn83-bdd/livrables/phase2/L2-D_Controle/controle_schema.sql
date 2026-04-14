@@ -4,12 +4,23 @@
 -- Schéma : NANOORBIT_ADMIN sur FREEPDB1
 -- ============================================================
 
+SET LINESIZE 150
+SET PAGESIZE 100
+
+COLUMN table_name       FORMAT A25
+COLUMN constraint_name  FORMAT A35
+COLUMN constraint_type  FORMAT A1  HEADING "T"
+COLUMN status           FORMAT A8
+COLUMN trigger_name     FORMAT A30
+COLUMN trigger_type     FORMAT A16
+COLUMN triggering_event FORMAT A20
+COLUMN table_name_t     FORMAT A15
 
 -- -------------------------------------------------------
 -- 1. Vérification des tables créées
 -- Attendu : 11 tables (10 + HISTORIQUE_STATUT)
 -- -------------------------------------------------------
-SELECT table_name, num_rows
+SELECT table_name
 FROM user_tables
 WHERE table_name IN (
                      'ORBITE', 'SATELLITE', 'INSTRUMENT', 'EMBARQUEMENT',
