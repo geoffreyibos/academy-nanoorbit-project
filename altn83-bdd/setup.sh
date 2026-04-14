@@ -75,11 +75,8 @@ echo "  Utilisateur créé."
 echo ""
 echo "=== 4/4 Exécution des scripts Phase 2 ==="
 
-# On appelle sqlplus directement avec le fichier maître (@@).
-# Passer des @file dans un heredoc casse le buffer multi-lignes
-# de SQL*Plus — les CREATE TABLE perdent leurs contraintes.
 if ! docker exec "$CONTAINER" bash -c \
-    "cd $SCRIPTS_DIR && sqlplus $APP_USER/$APP_PASS@localhost:1521/$PDB @run_phase2.sql"; then
+    "sqlplus $APP_USER/$APP_PASS@localhost:1521/$PDB @$SCRIPTS_DIR/G06_DEBEURET_IBOS_LEROUX_NanoOrbit_Phase2.sql"; then
     echo ""
     echo "============================================================"
     echo "ERREUR : L'exécution SQL a échoué."

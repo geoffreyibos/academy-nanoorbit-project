@@ -2,6 +2,7 @@
 
 **Module** : ALTN83 — Bases de Données Réparties  
 **Projet** : NanoOrbit — CubeSat Earth Observation System  
+**Groupe** : 06 — Oscar DEBEURET / Geoffrey IBOS / Hugo LEROUX  
 **Phase** : Phase 1 — Conception & Architecture distribuée  
 **Livrable** : L1-A — Dictionnaire des données complet
 
