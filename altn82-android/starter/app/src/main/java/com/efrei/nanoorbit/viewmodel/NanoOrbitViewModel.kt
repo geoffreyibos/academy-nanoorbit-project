@@ -5,7 +5,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.efrei.nanoorbit.data.db.NanoOrbitDatabase
 import com.efrei.nanoorbit.data.models.FenetreCom
-import com.efrei.nanoorbit.data.models.MockData
 import com.efrei.nanoorbit.data.models.Satellite
 import com.efrei.nanoorbit.data.models.SatelliteDetail
 import com.efrei.nanoorbit.data.models.StatutSatellite
@@ -175,5 +174,5 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun getResultCountLabel(): String = "${filteredSatellites.value.size} resultat(s)"
 
-    fun getAllSatelliteIds(): List<String> = MockData.satellites.map { it.idSatellite }
+    fun getAllSatelliteIds(): List<String> = satellites.value.map { it.idSatellite }
 }

@@ -1,7 +1,7 @@
 package com.efrei.nanoorbit.data.repository
 
-import com.efrei.nanoorbit.data.api.MockNanoOrbitApi
 import com.efrei.nanoorbit.data.api.NanoOrbitApi
+import com.efrei.nanoorbit.data.api.NanoOrbitApiFactory
 import com.efrei.nanoorbit.data.db.FenetreDao
 import com.efrei.nanoorbit.data.db.SatelliteDao
 import com.efrei.nanoorbit.data.db.toDomain
@@ -19,7 +19,7 @@ import java.time.LocalDateTime
 class NanoOrbitRepository(
     private val satelliteDao: SatelliteDao,
     private val fenetreDao: FenetreDao,
-    private val api: NanoOrbitApi = MockNanoOrbitApi()
+    private val api: NanoOrbitApi = NanoOrbitApiFactory.create()
 ) {
     suspend fun getSatellitesCacheFirst(): RepositoryPayload<List<Satellite>> {
         val cached = satelliteDao.getAll()
@@ -38,7 +38,7 @@ class NanoOrbitRepository(
     }
 
     suspend fun refreshSatellites(): RepositoryPayload<List<Satellite>> {
-        val remote = api.getSatellites()
+        val remote = api.getSatellites().map { it.toDomain() }
         val updatedAt = System.currentTimeMillis()
         satelliteDao.upsertAll(remote.map { it.toEntity(updatedAt) })
         return RepositoryPayload(remote, isOffline = false, cacheAgeMinutes = 0L)
@@ -61,7 +61,7 @@ class NanoOrbitRepository(
     }
 
     suspend fun refreshFenetres(): RepositoryPayload<List<FenetreCom>> {
-        val remote = api.getFenetres()
+        val remote = api.getFenetres().map { it.toDomain() }
         val upcoming = remote.filter {
             Duration.between(LocalDateTime.now(), it.datetimeDebut).toDays() <= 7 || it.datetimeDebut.isBefore(LocalDateTime.now())
         }
@@ -76,7 +76,7 @@ class NanoOrbitRepository(
 
     fun getOrbiteTypeForSatellite(idSatellite: String): String {
         val satellite = MockData.satelliteIndex[idSatellite] ?: return ""
-        return MockData.orbiteIndex[satellite.idOrbite]?.typeOrbite?.name.orEmpty()
+        return "Orbite ${satellite.idOrbite}"
     }
 
     // ALTN83 Phase 1 Q3 mirror: the cache-first strategy lets the app keep planning and consulting
@@ -93,13 +93,14 @@ class NanoOrbitRepository(
         }
 
         val satellite = MockData.satelliteIndex[satelliteId]
-        if (satellite?.statut?.name == "DESORBITE") {
+        if (satellite == null) {
+            return ValidationResult(false, "Satellite inconnu")
+        }
+        if (satellite.statut == com.efrei.nanoorbit.data.models.StatutSatellite.DESORBITE) {
             return ValidationResult(false, "Fenetre refusee : satellite desorbite")
         }
-
-        val station = MockData.stationIndex[stationCode]
-        if (station?.statut?.name == "MAINTENANCE") {
-            return ValidationResult(false, "Fenetre refusee : station en maintenance")
+        if (stationCode.isBlank()) {
+            return ValidationResult(false, "Station invalide")
         }
 
         return ValidationResult(true)

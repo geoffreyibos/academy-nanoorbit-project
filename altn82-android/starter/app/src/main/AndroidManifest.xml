@@ -11,6 +11,7 @@
         android:name=".NanoOrbitApplication"
         android:allowBackup="true"
         android:label="NanoOrbit Ground Control"
+        android:usesCleartextTraffic="true"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
