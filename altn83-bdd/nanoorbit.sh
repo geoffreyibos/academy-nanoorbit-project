@@ -154,7 +154,7 @@ action_reset() {
 
 action_deploy_all() {
     header
-    step_msg "Déploiement complet : Phase 2 + Phase 3"
+    step_msg "Déploiement complet : Phase 2 + Phase 3 + Phase 4"
     line_thin
 
     # Démarrage si besoin
@@ -168,13 +168,15 @@ action_deploy_all() {
 
     grant_privileges
 
-    run_script "Phase 2 (DDL + DML + Triggers)" "phase2" || { press_enter; return; }
-    run_script "Phase 3 (PL/SQL + Package)"     "phase3" || { press_enter; return; }
+    run_script "Phase 2 (DDL + DML + Triggers)"                   "phase2" || { press_enter; return; }
+    run_script "Phase 3 (PL/SQL + Package)"                        "phase3" || { press_enter; return; }
+    run_script "Phase 4 (Vues + CTE + Analytiques + MERGE + Index)" "phase4" \
+        || warn_msg "Phase 4 terminée avec avertissements"
 
     echo
-    echo -e "  ${G}${BOLD}╔══════════════════════════════════╗${RST}"
-    echo -e "  ${G}${BOLD}║  Déploiement complet réussi ✓    ║${RST}"
-    echo -e "  ${G}${BOLD}╚══════════════════════════════════╝${RST}"
+    echo -e "  ${G}${BOLD}╔══════════════════════════════════════╗${RST}"
+    echo -e "  ${G}${BOLD}║  Déploiement complet réussi ✓        ║${RST}"
+    echo -e "  ${G}${BOLD}╚══════════════════════════════════════╝${RST}"
     press_enter
 }
 
@@ -187,6 +189,12 @@ action_phase2() {
 action_phase3() {
     header
     run_script "Phase 3 (PL/SQL + Package)" "phase3"
+    press_enter
+}
+
+action_phase4() {
+    header
+    run_script "Phase 4 (Vues + CTE + Analytiques + MERGE + Index)" "phase4"
     press_enter
 }
 
@@ -253,11 +261,12 @@ SQL" 2>/dev/null || warn_msg "Base non disponible"
 menu() {
     while true; do
         header
-        echo -e "  ${BOLD}${W}Conteneur${RST}                         ${BOLD}${W}Scripts${RST}"
+        echo -e "  ${BOLD}${W}Conteneur${RST}                         ${BOLD}${W}Scripts — phases${RST}"
         line_thin
-        echo -e "  ${C}1${RST}  Démarrer le conteneur          ${C}5${RST}  Exécuter Phase 2 seule"
-        echo -e "  ${C}2${RST}  Arrêter le conteneur           ${C}6${RST}  Exécuter Phase 3 seule"
-        echo -e "  ${C}3${RST}  Reset complet ${DIM}(down -v)${RST}        ${C}7${RST}  Déploiement complet ${DIM}(2+3)${RST}"
+        echo -e "  ${C}1${RST}  Démarrer le conteneur          ${C}5${RST}  Phase 2 seule ${DIM}(DDL + DML + Triggers)${RST}"
+        echo -e "  ${C}2${RST}  Arrêter le conteneur           ${C}6${RST}  Phase 3 seule ${DIM}(PL/SQL + Package)${RST}"
+        echo -e "  ${C}3${RST}  Reset complet ${DIM}(down -v)${RST}        ${C}4${RST}  Phase 4 seule ${DIM}(Vues + CTE + MERGE + Index)${RST}"
+        echo -e "                                 ${C}7${RST}  Déploiement complet ${DIM}(2 + 3 + 4)${RST}"
         echo
         echo -e "  ${BOLD}${W}Oracle${RST}"
         line_thin
@@ -273,6 +282,7 @@ menu() {
             1) action_start      ;;
             2) action_stop       ;;
             3) action_reset      ;;
+            4) action_phase4     ;;
             5) action_phase2     ;;
             6) action_phase3     ;;
             7) action_deploy_all ;;
