@@ -10,16 +10,17 @@ SET SERVEROUTPUT ON SIZE UNLIMITED
 SET LINESIZE 150
 SET PAGESIZE 100
 SET SQLBLANKLINES ON
+SET FEEDBACK OFF
+SET VERIFY OFF
 
--- ============================================================
--- PALIER 1 — Bloc anonyme
--- ============================================================
-
--- Ex. 1 : comptage général (satellites, stations, missions)
--- Résultat attendu :
---   Satellites : 5
---   Stations   : 3
---   Missions   : 3
+PROMPT
+PROMPT ════════════════════════════════════════════
+PROMPT  Phase 3 — NanoOrbit  (PL/SQL + Package)
+PROMPT ════════════════════════════════════════════
+PROMPT
+PROMPT [PALIER 1] Blocs anonymes
+PROMPT ──────────────────────────────────────────────────────
+PROMPT Ex.1  Comptage general (satellites, stations, missions)
 DECLARE
     v_nb_satellites  NUMBER;
     v_nb_stations    NUMBER;
@@ -35,15 +36,8 @@ BEGIN
 END;
 /
 
--- Ex. 2 : caractéristiques de SAT-001 via SELECT INTO
--- Résultat attendu :
---   Nom          : NanoOrbit-Alpha
---   Format       : 3U
---   Statut       : Opérationnel
---   Lancement    : 15/03/2022
---   Masse (kg)   : 1.3
---   Batterie (Wh): 20
---   Orbite       : ORB-001
+PROMPT
+PROMPT Ex.2  Caracteristiques de SAT-001 (SELECT INTO)
 DECLARE
     v_nom       SATELLITE.nom_satellite%TYPE;
     v_format    SATELLITE.format_cubesat%TYPE;
@@ -71,14 +65,10 @@ END;
 /
 
 
--- ============================================================
--- PALIER 2 — Variables et types
--- ============================================================
-
--- Ex. 3 : %ROWTYPE — statut et capacité batterie de SAT-001
--- Résultat attendu :
---   Statut   : Opérationnel
---   Batterie : 20 Wh
+PROMPT
+PROMPT [PALIER 2] Variables et types
+PROMPT ──────────────────────────────────────────────────────
+PROMPT Ex.3  %ROWTYPE — statut et batterie de SAT-001
 DECLARE
     v_sat SATELLITE%ROWTYPE;
 BEGIN
@@ -89,10 +79,8 @@ BEGIN
 END;
 /
 
--- Ex. 4 : NVL — résolution de INS-AIS-01 (NULL → N/A)
--- Résultat attendu :
---   Modèle     : ShipTrack-V2
---   Résolution : N/A m
+PROMPT
+PROMPT Ex.4  NVL — resolution de INS-AIS-01 (NULL -> N/A)
 DECLARE
     v_modele     INSTRUMENT.modele%TYPE;
     v_resolution INSTRUMENT.resolution_m%TYPE;
@@ -108,16 +96,10 @@ END;
 /
 
 
--- ============================================================
--- PALIER 3 — Structures de contrôle
--- ============================================================
-
--- Ex. 5 : IF/ELSIF — catégoriser SAT-001 selon statut et durée de vie restante
--- Résultat attendu :
---   Satellite  : SAT-001
---   Statut     : Opérationnel
---   Restant    : ~23 mois (selon date d'exécution)
---   Catégorie  : Surveillance renforcée
+PROMPT
+PROMPT [PALIER 3] Structures de controle
+PROMPT ──────────────────────────────────────────────────────
+PROMPT Ex.5  IF/ELSIF — categorisation de SAT-001 par duree de vie
 DECLARE
     v_sat          SATELLITE%ROWTYPE;
     v_mois_ecoules NUMBER;
@@ -148,11 +130,8 @@ BEGIN
 END;
 /
 
--- Ex. 6 : CASE — type d'orbite et vitesse orbitale de SAT-001
--- Formule : v = 2π × (6371 + altitude) / période (km/min)
--- Résultat attendu :
---   Type    : Orbite héliosynchrone
---   Vitesse : 455,35 km/min (≈ 7,6 km/s)
+PROMPT
+PROMPT Ex.6  CASE — type d'orbite et vitesse orbitale de SAT-001
 DECLARE
     v_type_orbite ORBITE.type_orbite%TYPE;
     v_altitude    ORBITE.altitude_km%TYPE;
@@ -180,10 +159,8 @@ BEGIN
 END;
 /
 
--- Ex. 7 : boucle FOR — grille des volumes pour passages de 5 à 15 min (GS-TLS-01, 150 Mbps)
--- Volume (Mo) = débit (Mbps) × durée (s) / 8
--- Résultat attendu :
---   5 min → 5625 Mo, ..., 15 min → 16875 Mo
+PROMPT
+PROMPT Ex.7  FOR loop — grille volumes (5 a 15 min, 150 Mbps)
 DECLARE
     v_debit  NUMBER := 150;
     v_volume NUMBER;
@@ -198,14 +175,10 @@ END;
 /
 
 
--- ============================================================
--- PALIER 4 — Curseurs
--- ============================================================
-
--- Ex. 8 : SQL%ROWCOUNT — mise à jour de plusieurs satellites + comptage
--- Résultat attendu :
---   Satellites mis en veille : 2
---   Rollback effectué — données restaurées.
+PROMPT
+PROMPT [PALIER 4] Curseurs
+PROMPT ──────────────────────────────────────────────────────
+PROMPT Ex.8  SQL%ROWCOUNT — UPDATE satellites + rollback
 BEGIN
     UPDATE SATELLITE
     SET    statut = 'En veille'
@@ -218,8 +191,8 @@ BEGIN
 END;
 /
 
--- Ex. 9 : Cursor FOR Loop — satellites avec orbite, statut et instruments
--- Résultat attendu : 1 ligne par combinaison satellite/instrument
+PROMPT
+PROMPT Ex.9  Cursor FOR Loop — satellites / orbite / instruments
 BEGIN
     FOR r IN (
         SELECT s.id_satellite, s.statut,
@@ -240,9 +213,8 @@ BEGIN
 END;
 /
 
--- Ex. 10 : curseur explicite OPEN/FETCH/CLOSE
--- Satellites opérationnels + dernière fenêtre de communication
--- Résultat attendu : SAT-001, SAT-002, SAT-003 avec leur dernière station
+PROMPT
+PROMPT Ex.10 Curseur explicite OPEN/FETCH/CLOSE — derniere fenetre par satellite
 DECLARE
     CURSOR c_sat IS
         SELECT s.id_satellite,
@@ -273,11 +245,8 @@ BEGIN
 END;
 /
 
--- Ex. 11 : curseur paramétré — fenêtres de GS-KIR-01 + volume total
--- Résultat attendu :
---   SAT-001 | 15/01/2024 09:14 | 420s | Réalisée | 1250 Mo
---   SAT-003 | 16/01/2024 08:30 | 540s | Réalisée | 1680 Mo
---   Volume total téléchargé : 2930 Mo
+PROMPT
+PROMPT Ex.11 Curseur parametre — fenetres GS-KIR-01 + volume total
 DECLARE
     CURSOR c_fenetres(p_station VARCHAR2) IS
         SELECT f.id_fenetre, f.id_satellite, f.datetime_debut,
@@ -302,13 +271,10 @@ END;
 /
 
 
--- ============================================================
--- PALIER 5 — Procédures et fonctions standalone
--- ============================================================
-
--- Ex. 12 : SELECT INTO sécurisé — NO_DATA_FOUND et OTHERS
--- Résultat attendu :
---   Satellite introuvable.
+PROMPT
+PROMPT [PALIER 5] Procedures et fonctions standalone
+PROMPT ──────────────────────────────────────────────────────
+PROMPT Ex.12 SELECT INTO securise — NO_DATA_FOUND / OTHERS
 DECLARE
     v_sat SATELLITE%ROWTYPE;
 BEGIN
@@ -322,9 +288,8 @@ EXCEPTION
 END;
 /
 
--- Ex. 13 : RAISE_APPLICATION_ERROR — validation d'une fenêtre avant insertion
--- Vérifie : satellite opérationnel, station active, absence de chevauchement
--- Résultat attendu : Validation OK — fenêtre autorisée.
+PROMPT
+PROMPT Ex.13 RAISE_APPLICATION_ERROR — validation fenetre (statut + chevauchement)
 DECLARE
     v_statut_sat SATELLITE.statut%TYPE;
     v_statut_sta STATION_SOL.statut%TYPE;
@@ -363,8 +328,8 @@ EXCEPTION
 END;
 /
 
--- Ex. 14 : procédure afficher_statut_satellite(p_id IN)
--- Résultat attendu pour SAT-001 : statut, orbite ORB-001, 2 instruments
+PROMPT
+PROMPT Ex.14 Procedure afficher_statut_satellite
 CREATE OR REPLACE PROCEDURE afficher_statut_satellite(p_id IN VARCHAR2) IS
     v_sat SATELLITE%ROWTYPE;
     v_orb ORBITE%ROWTYPE;
@@ -388,7 +353,6 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('Satellite ' || p_id || ' introuvable.');
 END;
 /
-SHOW ERRORS
 
 BEGIN
     afficher_statut_satellite('SAT-001');
@@ -396,10 +360,8 @@ BEGIN
 END;
 /
 
--- Ex. 15 : procédure mettre_a_jour_statut(p_id IN, p_statut IN, p_ancien_statut OUT)
--- Résultat attendu :
---   SAT-004 : En veille → Opérationnel
---   Ancien statut récupéré : En veille
+PROMPT
+PROMPT Ex.15 Procedure mettre_a_jour_statut (parametre OUT)
 CREATE OR REPLACE PROCEDURE mettre_a_jour_statut(
     p_id            IN  VARCHAR2,
     p_statut        IN  VARCHAR2,
@@ -414,7 +376,7 @@ EXCEPTION
         RAISE_APPLICATION_ERROR(-20001, 'Satellite ' || p_id || ' introuvable.');
 END;
 /
-SHOW ERRORS
+
 
 DECLARE
     v_ancien VARCHAR2(30);
@@ -425,10 +387,8 @@ BEGIN
 END;
 /
 
--- Ex. 16 : fonction calculer_volume_session(p_id_fenetre IN) RETURN NUMBER
--- Volume théorique = débit_max_mbps × duree_secondes / 8 (Mo)
--- Résultat attendu :
---   Fenêtre 1 (SAT-001 → GS-KIR-01) — volume théorique : 21000 Mo
+PROMPT
+PROMPT Ex.16 Fonction calculer_volume_session (debit x duree / 8)
 CREATE OR REPLACE FUNCTION calculer_volume_session(p_id_fenetre IN NUMBER) RETURN NUMBER IS
     v_debit STATION_SOL.debit_max_mbps%TYPE;
     v_duree FENETRE_COM.duree_secondes%TYPE;
@@ -444,7 +404,7 @@ EXCEPTION
         RAISE_APPLICATION_ERROR(-20001, 'Fenêtre ' || p_id_fenetre || ' introuvable.');
 END;
 /
-SHOW ERRORS
+
 
 BEGIN
     FOR r IN (SELECT id_fenetre, id_satellite, code_station FROM FENETRE_COM) LOOP
@@ -457,21 +417,14 @@ END;
 /
 
 
--- ============================================================
--- PALIER 6 (BONUS) — Package pkg_nanoOrbit
--- ============================================================
--- Contient 7 sous-programmes publics :
---   planifier_fenetre       PROCEDURE  — valide + insère une fenêtre
---   cloturer_fenetre        PROCEDURE  — passe une fenêtre à 'Réalisée'
---   affecter_satellite_mission PROCEDURE — inscrit un satellite à une mission
---   mettre_en_revision      PROCEDURE  — passe un satellite à 'En veille'
---   calculer_volume_theorique FUNCTION — débit × durée / 8 (Mo)
---   statut_constellation    PROCEDURE  — vue d'ensemble de la constellation
---   stats_satellite         PROCEDURE  — stats d'un satellite
-
--- ============================================================
--- SPEC
--- ============================================================
+PROMPT
+PROMPT [PALIER 6] Package pkg_nanoOrbit (bonus)
+PROMPT ──────────────────────────────────────────────────────
+PROMPT   planifier_fenetre / cloturer_fenetre
+PROMPT   affecter_satellite_mission / mettre_en_revision
+PROMPT   calculer_volume_theorique / statut_constellation / stats_satellite
+PROMPT
+PROMPT Compilation SPEC...
 CREATE OR REPLACE PACKAGE pkg_nanoOrbit AS
 
     PROCEDURE planifier_fenetre(
@@ -503,11 +456,9 @@ CREATE OR REPLACE PACKAGE pkg_nanoOrbit AS
 
 END pkg_nanoOrbit;
 /
-SHOW ERRORS
 
--- ============================================================
--- BODY
--- ============================================================
+
+PROMPT Compilation BODY...
 CREATE OR REPLACE PACKAGE BODY pkg_nanoOrbit AS
 
     -- ----------------------------------------------------------
@@ -708,11 +659,11 @@ CREATE OR REPLACE PACKAGE BODY pkg_nanoOrbit AS
 
 END pkg_nanoOrbit;
 /
-SHOW ERRORS
 
--- ============================================================
--- Scénario de validation du package
--- ============================================================
+
+PROMPT
+PROMPT [SCENARIO] Validation du package
+PROMPT ──────────────────────────────────────────────────────
 DECLARE
     v_id_fenetre NUMBER;
 BEGIN

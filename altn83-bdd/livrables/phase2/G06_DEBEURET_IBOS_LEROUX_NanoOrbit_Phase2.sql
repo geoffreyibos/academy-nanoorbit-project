@@ -9,6 +9,16 @@
 SET SERVEROUTPUT ON SIZE UNLIMITED
 SET LINESIZE 150
 SET PAGESIZE 100
+SET SQLBLANKLINES ON
+SET FEEDBACK OFF
+SET VERIFY OFF
+
+PROMPT
+PROMPT ════════════════════════════════════════════
+PROMPT  Phase 2 — NanoOrbit  (DDL + DML + Triggers)
+PROMPT ════════════════════════════════════════════
+PROMPT
+PROMPT [DDL] Creation des tables...
 
 -- ============================================================
 -- Table : ORBITE
@@ -364,6 +374,7 @@ CREATE TABLE HISTORIQUE_STATUT (
         FOREIGN KEY (id_satellite) REFERENCES SATELLITE(id_satellite)
 );
 -- ============================================================
+PROMPT [DML] Insertion des donnees de reference...
 -- DML : ORBITE (3 lignes)
 -- Identifiants format ORB-NNN conformément à l'Annexe A
 -- ============================================================
@@ -575,6 +586,8 @@ VALUES ('SAT-004', 'MSN-COAST-2024', 'Satellite de secours');
 
 COMMIT;
 -- ============================================================
+PROMPT
+PROMPT [T1] trg_valider_fenetre...
 -- TRIGGER T1 — trg_valider_fenetre
 -- Niveau  : 1 (Obligatoire)
 -- Événement : BEFORE INSERT ON FENETRE_COM
@@ -618,6 +631,7 @@ END trg_valider_fenetre;
 SHOW ERRORS
 
 -- ============================================================
+PROMPT [TEST T1] Validation des contraintes...
 -- CAS DE TEST T1
 -- ============================================================
 
@@ -682,6 +696,8 @@ END;
 /
 
 -- ============================================================
+PROMPT
+PROMPT [T2] trg_no_chevauchement...
 -- TRIGGER T2 — trg_no_chevauchement (CORRIGÉ)
 -- Niveau  : 1 (Obligatoire)
 -- Événement : FOR INSERT OR UPDATE ON FENETRE_COM (Compound Trigger)
@@ -789,6 +805,7 @@ END BEFORE STATEMENT;
 SHOW ERRORS
 
 -- ============================================================
+PROMPT [TEST T2] Validation des contraintes...
 -- CAS DE TEST T2
 -- ============================================================
 
@@ -825,6 +842,8 @@ END;
 /
 
 -- ============================================================
+PROMPT
+PROMPT [T3] trg_volume_realise...
 -- TRIGGER T3 — trg_volume_realise
 -- Niveau  : 1 (Obligatoire)
 -- Événement : BEFORE INSERT OR UPDATE ON FENETRE_COM
@@ -847,6 +866,7 @@ END trg_volume_realise;
 SHOW ERRORS
 
 -- ============================================================
+PROMPT [TEST T3] Validation des contraintes...
 -- CAS DE TEST T3
 -- ============================================================
 
@@ -876,6 +896,8 @@ SELECT id_fenetre, statut, volume_donnees_mo
 
 ROLLBACK;
 -- ============================================================
+PROMPT
+PROMPT [T4] trg_mission_terminee...
 -- TRIGGER T4 — trg_mission_terminee
 -- Niveau  : 2 (Bonus)
 -- Événement : BEFORE INSERT ON PARTICIPATION
@@ -920,6 +942,7 @@ END trg_mission_terminee;
 SHOW ERRORS
 
 -- ============================================================
+PROMPT [TEST T4] Validation des contraintes...
 -- CAS DE TEST T4
 -- ============================================================
 
@@ -977,6 +1000,8 @@ END;
 /
 
 -- ============================================================
+PROMPT
+PROMPT [T5] trg_historique_statut...
 -- TRIGGER T5 — trg_historique_statut
 -- Niveau  : 2 (Bonus)
 -- Événement : AFTER UPDATE OF statut ON SATELLITE
@@ -1006,6 +1031,7 @@ END trg_historique_statut;
 SHOW ERRORS
 
 -- ============================================================
+PROMPT [TEST T5] Validation des contraintes...
 -- CAS DE TEST T5
 -- ============================================================
 
@@ -1065,6 +1091,8 @@ ROLLBACK;
 -- (doit être vide car tous les tests ont été rollback-és)
 SELECT * FROM HISTORIQUE_STATUT ORDER BY date_changement DESC;
 -- ============================================================
+PROMPT
+PROMPT [CONTROLE] Verification du schema...
 -- L2-D : Script de contrôle du schéma NanoOrbit
 -- Vérification des tables, contraintes et triggers
 -- Schéma : NANOORBIT_ADMIN sur FREEPDB1
