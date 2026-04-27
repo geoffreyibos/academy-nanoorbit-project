@@ -263,9 +263,10 @@ menu() {
         header
         echo -e "  ${BOLD}${W}Conteneur${RST}                         ${BOLD}${W}Scripts — phases${RST}"
         line_thin
-        echo -e "  ${C}1${RST}  Démarrer le conteneur          ${C}5${RST}  Phase 2 seule ${DIM}(DDL + DML + Triggers)${RST}"
-        echo -e "  ${C}2${RST}  Arrêter le conteneur           ${C}6${RST}  Phase 3 seule ${DIM}(PL/SQL + Package)${RST}"
-        echo -e "  ${C}3${RST}  Reset complet ${DIM}(down -v)${RST}        ${C}4${RST}  Phase 4 seule ${DIM}(Vues + CTE + MERGE + Index)${RST}"
+
+        echo -e "  ${C}1${RST}  Démarrer le conteneur          ${C}4${RST}  Phase 2 seule ${DIM}(DDL + DML + Triggers)${RST}"
+        echo -e "  ${C}2${RST}  Arrêter le conteneur           ${C}5${RST}  Phase 3 seule ${DIM}(PL/SQL + Package)${RST}"
+        echo -e "  ${C}3${RST}  Reset complet ${DIM}(down -v)${RST}        ${C}6${RST}  Phase 4 seule ${DIM}(Vues + CTE + MERGE + Index)${RST}"
         echo -e "                                 ${C}7${RST}  Déploiement complet ${DIM}(2 + 3 + 4)${RST}"
         echo
         echo -e "  ${BOLD}${W}Oracle${RST}"
@@ -282,9 +283,9 @@ menu() {
             1) action_start      ;;
             2) action_stop       ;;
             3) action_reset      ;;
-            4) action_phase4     ;;
-            5) action_phase2     ;;
-            6) action_phase3     ;;
+            4) action_phase2     ;;
+            5) action_phase3     ;;
+            6) action_phase4     ;;
             7) action_deploy_all ;;
             8) action_connect    ;;
             9) action_status     ;;
