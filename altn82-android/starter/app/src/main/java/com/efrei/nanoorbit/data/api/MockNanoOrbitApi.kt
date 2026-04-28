@@ -13,6 +13,7 @@ class MockNanoOrbitApi : NanoOrbitApi {
                 statut = it.statut.name,
                 formatCubesat = it.formatCubesat.label,
                 idOrbite = it.idOrbite,
+                orbiteType = it.orbiteType,
                 dateLancement = it.dateLancement,
                 masse = it.masse,
                 dureeViePrevueMois = it.dureeViePrevueMois,
@@ -38,6 +39,63 @@ class MockNanoOrbitApi : NanoOrbitApi {
             }
     }
 
+    override suspend fun getSatelliteDetail(satelliteId: String): RemoteSatelliteDetailDto? {
+        delay(300)
+        val detail = MockData.detailForSatellite(satelliteId) ?: return null
+        return RemoteSatelliteDetailDto(
+            satellite = RemoteSatelliteDto(
+                idSatellite = detail.satellite.idSatellite,
+                nomSatellite = detail.satellite.nomSatellite,
+                statut = detail.satellite.statut.name,
+                formatCubesat = detail.satellite.formatCubesat.label,
+                idOrbite = detail.satellite.idOrbite,
+                orbiteType = detail.satellite.orbiteType,
+                dateLancement = detail.satellite.dateLancement,
+                masse = detail.satellite.masse,
+                dureeViePrevueMois = detail.satellite.dureeViePrevueMois,
+                capaciteBatterie = detail.satellite.capaciteBatterie
+            ),
+            orbite = detail.orbite?.let {
+                RemoteOrbiteDto(
+                    idOrbite = it.idOrbite,
+                    typeOrbite = it.typeOrbite.name,
+                    altitude = it.altitude,
+                    inclinaison = it.inclinaison,
+                    periodeOrbitale = it.periodeOrbitale,
+                    excentricite = it.excentricite,
+                    zoneCouverture = it.zoneCouverture
+                )
+            },
+            instruments = detail.instruments.map {
+                RemoteSatelliteInstrumentDto(
+                    instrument = RemoteInstrumentDto(
+                        refInstrument = it.instrument.refInstrument,
+                        typeInstrument = it.instrument.typeInstrument,
+                        modele = it.instrument.modele,
+                        resolution = it.instrument.resolution,
+                        consommation = it.instrument.consommation,
+                        masse = it.instrument.masse
+                    ),
+                    etatFonctionnement = it.etatFonctionnement
+                )
+            },
+            missions = detail.missions.map {
+                RemoteMissionParticipationDto(
+                    mission = RemoteMissionDto(
+                        idMission = it.mission.idMission,
+                        nomMission = it.mission.nomMission,
+                        objectif = it.mission.objectif,
+                        dateDebut = it.mission.dateDebut,
+                        statutMission = it.mission.statutMission.name,
+                        dateFin = it.mission.dateFin,
+                        zoneGeoCible = it.mission.zoneGeoCible
+                    ),
+                    roleSatellite = it.roleSatellite
+                )
+            }
+        )
+    }
+
     override suspend fun getFenetres(): List<RemoteFenetreDto> {
         delay(500)
         return MockData.fenetres.map {
@@ -50,6 +108,22 @@ class MockNanoOrbitApi : NanoOrbitApi {
                 idSatellite = it.idSatellite,
                 codeStation = it.codeStation,
                 volumeDonnees = it.volumeDonnees
+            )
+        }
+    }
+
+    override suspend fun getStations(): List<RemoteStationDto> {
+        delay(300)
+        return MockData.stations.map {
+            RemoteStationDto(
+                codeStation = it.codeStation,
+                nomStation = it.nomStation,
+                latitude = it.latitude,
+                longitude = it.longitude,
+                diametreAntenne = it.diametreAntenne,
+                bandeFrequence = it.bandeFrequence,
+                debitMax = it.debitMax,
+                statut = it.statut.name
             )
         }
     }

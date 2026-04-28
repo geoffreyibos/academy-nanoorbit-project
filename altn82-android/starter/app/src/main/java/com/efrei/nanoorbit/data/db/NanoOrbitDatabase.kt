@@ -6,13 +6,20 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [SatelliteEntity::class, FenetreEntity::class],
-    version = 1,
+    entities = [
+        SatelliteEntity::class,
+        FenetreEntity::class,
+        StationEntity::class,
+        SatelliteStatusOverrideEntity::class
+    ],
+    version = 4,
     exportSchema = false
 )
 abstract class NanoOrbitDatabase : RoomDatabase() {
     abstract fun satelliteDao(): SatelliteDao
     abstract fun fenetreDao(): FenetreDao
+    abstract fun stationDao(): StationDao
+    abstract fun satelliteStatusOverrideDao(): SatelliteStatusOverrideDao
 
     companion object {
         @Volatile
@@ -24,7 +31,10 @@ abstract class NanoOrbitDatabase : RoomDatabase() {
                     context.applicationContext,
                     NanoOrbitDatabase::class.java,
                     "nanoorbit.db"
-                ).build().also { instance = it }
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
+                    .also { instance = it }
             }
     }
 }

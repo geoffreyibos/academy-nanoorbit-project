@@ -10,6 +10,12 @@ interface NanoOrbitApi {
     @GET("satellites/{id}/instruments")
     suspend fun getSatelliteInstruments(@Path("id") satelliteId: String): List<RemoteInstrumentDto>
 
+    @GET("satellites/{id}/detail")
+    suspend fun getSatelliteDetail(@Path("id") satelliteId: String): RemoteSatelliteDetailDto?
+
     @GET("fenetres")
     suspend fun getFenetres(): List<RemoteFenetreDto>
+
+    @GET("stations")
+    suspend fun getStations(): List<RemoteStationDto>
 }

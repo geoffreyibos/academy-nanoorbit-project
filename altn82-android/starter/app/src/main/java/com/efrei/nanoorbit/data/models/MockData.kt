@@ -11,11 +11,11 @@ object MockData {
     )
 
     val satellites = listOf(
-        Satellite("SAT-001", "NanoOrbit-Alpha", StatutSatellite.OPERATIONNEL, FormatCubeSat.U3, 1, LocalDate.parse("2022-03-15"), 1.3, 60, 20),
-        Satellite("SAT-002", "NanoOrbit-Beta", StatutSatellite.OPERATIONNEL, FormatCubeSat.U3, 1, LocalDate.parse("2022-03-15"), 1.3, 60, 20),
-        Satellite("SAT-003", "NanoOrbit-Gamma", StatutSatellite.OPERATIONNEL, FormatCubeSat.U6, 2, LocalDate.parse("2023-06-10"), 2.0, 84, 40),
-        Satellite("SAT-004", "NanoOrbit-Delta", StatutSatellite.EN_VEILLE, FormatCubeSat.U6, 2, LocalDate.parse("2023-06-10"), 2.0, 84, 40),
-        Satellite("SAT-005", "NanoOrbit-Epsilon", StatutSatellite.DESORBITE, FormatCubeSat.U12, 3, LocalDate.parse("2021-11-20"), 4.5, 36, 80)
+        Satellite("SAT-001", "NanoOrbit-Alpha", StatutSatellite.OPERATIONNEL, FormatCubeSat.U3, 1, "SSO", LocalDate.parse("2022-03-15"), 1.3, 60, 20),
+        Satellite("SAT-002", "NanoOrbit-Beta", StatutSatellite.OPERATIONNEL, FormatCubeSat.U3, 1, "SSO", LocalDate.parse("2022-03-15"), 1.3, 60, 20),
+        Satellite("SAT-003", "NanoOrbit-Gamma", StatutSatellite.OPERATIONNEL, FormatCubeSat.U6, 2, "SSO", LocalDate.parse("2023-06-10"), 2.0, 84, 40),
+        Satellite("SAT-004", "NanoOrbit-Delta", StatutSatellite.EN_VEILLE, FormatCubeSat.U6, 2, "SSO", LocalDate.parse("2023-06-10"), 2.0, 84, 40),
+        Satellite("SAT-005", "NanoOrbit-Epsilon", StatutSatellite.DESORBITE, FormatCubeSat.U12, 3, "LEO", LocalDate.parse("2021-11-20"), 4.5, 36, 80)
     )
 
     val instruments = listOf(

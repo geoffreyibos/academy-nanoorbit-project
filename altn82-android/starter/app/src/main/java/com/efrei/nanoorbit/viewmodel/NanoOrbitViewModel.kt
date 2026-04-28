@@ -5,11 +5,13 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.efrei.nanoorbit.data.db.NanoOrbitDatabase
 import com.efrei.nanoorbit.data.models.FenetreCom
+import com.efrei.nanoorbit.data.models.RepositoryPayload
 import com.efrei.nanoorbit.data.models.Satellite
 import com.efrei.nanoorbit.data.models.SatelliteDetail
 import com.efrei.nanoorbit.data.models.StatutSatellite
 import com.efrei.nanoorbit.data.models.StationSol
 import com.efrei.nanoorbit.data.repository.NanoOrbitRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +23,9 @@ import kotlinx.coroutines.launch
 class NanoOrbitViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = NanoOrbitRepository(
         satelliteDao = NanoOrbitDatabase.getInstance(application).satelliteDao(),
-        fenetreDao = NanoOrbitDatabase.getInstance(application).fenetreDao()
+        fenetreDao = NanoOrbitDatabase.getInstance(application).fenetreDao(),
+        stationDao = NanoOrbitDatabase.getInstance(application).stationDao(),
+        statusOverrideDao = NanoOrbitDatabase.getInstance(application).satelliteStatusOverrideDao()
     )
 
     private val _satellites = MutableStateFlow<List<Satellite>>(emptyList())
@@ -42,8 +46,14 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
     private val _fenetres = MutableStateFlow<List<FenetreCom>>(emptyList())
     val fenetres: StateFlow<List<FenetreCom>> = _fenetres.asStateFlow()
 
-    private val _stations = MutableStateFlow<List<StationSol>>(repository.getStations())
+    private val _stations = MutableStateFlow<List<StationSol>>(emptyList())
     val stations: StateFlow<List<StationSol>> = _stations.asStateFlow()
+
+    private val _selectedDetail = MutableStateFlow<SatelliteDetail?>(null)
+    val selectedDetail: StateFlow<SatelliteDetail?> = _selectedDetail.asStateFlow()
+
+    private val _isDetailLoading = MutableStateFlow(false)
+    val isDetailLoading: StateFlow<Boolean> = _isDetailLoading.asStateFlow()
 
     private val _selectedStationCode = MutableStateFlow<String?>(null)
     val selectedStationCode: StateFlow<String?> = _selectedStationCode.asStateFlow()
@@ -57,6 +67,11 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
     private val _planningValidationMessage = MutableStateFlow<String?>(null)
     val planningValidationMessage: StateFlow<String?> = _planningValidationMessage.asStateFlow()
 
+    private val _mockDataWarning = MutableStateFlow<String?>(null)
+    val mockDataWarning: StateFlow<String?> = _mockDataWarning.asStateFlow()
+
+    private var lastSyncAgeMinutes: Long? = null
+
     val filteredSatellites: StateFlow<List<Satellite>> = combine(
         satellites,
         searchQuery,
@@ -65,7 +80,7 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
         satellitesList.filter { satellite ->
             val matchesSearch = query.isBlank() ||
                 satellite.nomSatellite.contains(query, ignoreCase = true) ||
-                repository.getOrbiteTypeForSatellite(satellite.idSatellite).contains(query, ignoreCase = true)
+                satellite.orbiteType.orEmpty().contains(query, ignoreCase = true)
             val matchesStatut = statut == null || satellite.statut == statut
             matchesSearch && matchesStatut
         }
@@ -81,6 +96,7 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
+        loadStations()
         loadSatellites()
         loadFenetres()
     }
@@ -93,8 +109,7 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
                 repository.getSatellitesCacheFirst()
             }.onSuccess { payload ->
                 _satellites.value = payload.data
-                _isOfflineMode.value = payload.isOffline
-                _cacheAgeLabel.value = repository.formatCacheAge(payload.cacheAgeMinutes)
+                updateOfflineState(payload)
                 if (payload.isOffline) {
                     refreshSatellites()
                 }
@@ -108,8 +123,42 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
     fun loadFenetres() {
         viewModelScope.launch {
             runCatching { repository.getFenetresCacheFirst() }
-                .onSuccess { payload -> _fenetres.value = payload.data }
+                .onSuccess { payload ->
+                    _fenetres.value = payload.data
+                    updateOfflineState(payload)
+                    if (payload.isOffline) {
+                        refreshFenetres()
+                    }
+                }
                 .onFailure { _errorMessage.value = "Impossible de charger les fenetres." }
+        }
+    }
+
+    fun loadStations() {
+        viewModelScope.launch {
+            runCatching { repository.getStationsCacheFirst() }
+                .onSuccess { payload ->
+                    _stations.value = payload.data
+                    updateOfflineState(payload)
+                    if (payload.usesMockData) {
+                        delay(1500)
+                        refreshStations()
+                    } else if (payload.isOffline) {
+                        refreshStations()
+                    }
+                }
+                .onFailure { _errorMessage.value = "Impossible de charger les stations." }
+        }
+    }
+
+    fun refreshStations() {
+        viewModelScope.launch {
+            runCatching { repository.refreshStations() }
+                .onSuccess { payload ->
+                    _stations.value = payload.data
+                    updateOfflineState(payload)
+                }
+                .onFailure { _errorMessage.value = "Impossible de rafraichir les stations." }
         }
     }
 
@@ -131,8 +180,7 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
             runCatching { repository.refreshSatellites() }
                 .onSuccess { payload ->
                     _satellites.value = payload.data
-                    _isOfflineMode.value = false
-                    _cacheAgeLabel.value = null
+                    updateOfflineState(payload)
                 }
                 .onFailure { _errorMessage.value = "Erreur reseau lors du rafraichissement." }
             _isLoading.value = false
@@ -142,7 +190,10 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
     fun refreshFenetres() {
         viewModelScope.launch {
             runCatching { repository.refreshFenetres() }
-                .onSuccess { payload -> _fenetres.value = payload.data }
+                .onSuccess { payload ->
+                    _fenetres.value = payload.data
+                    updateOfflineState(payload)
+                }
                 .onFailure { _errorMessage.value = "Erreur reseau lors du rafraichissement des fenetres." }
         }
     }
@@ -151,20 +202,60 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
         _errorMessage.value = null
     }
 
-    fun getDetail(satelliteId: String): SatelliteDetail? = repository.getSatelliteDetail(satelliteId)
+    fun loadDetail(satelliteId: String) {
+        viewModelScope.launch {
+            _isDetailLoading.value = true
+            runCatching { repository.getSatelliteDetail(satelliteId) }
+                .onSuccess { _selectedDetail.value = it }
+                .onFailure { _errorMessage.value = "Impossible de charger le detail du satellite." }
+            _isDetailLoading.value = false
+        }
+    }
+
+    fun clearDetail() {
+        _selectedDetail.value = null
+    }
 
     fun getStationName(codeStation: String): String =
         stations.value.firstOrNull { it.codeStation == codeStation }?.nomStation ?: codeStation
 
     fun validatePlanningInput(satelliteId: String, stationCode: String, dureeSecondes: Int) {
-        // Same client-side rule as Oracle RG-F04/T1: fail before the payload is sent.
+        val satellite = satellites.value.firstOrNull { it.idSatellite == satelliteId }
+        val station = stations.value.firstOrNull { it.codeStation == stationCode }
         _planningValidationMessage.value = repository
-            .validateFenetreCreation(satelliteId, stationCode, dureeSecondes)
+            .validateFenetreCreation(satellite, station, dureeSecondes)
             .message ?: "Validation OK : fenetre planifiable"
     }
 
     fun clearPlanningMessage() {
         _planningValidationMessage.value = null
+    }
+
+    fun clearMockDataWarning() {
+        _mockDataWarning.value = null
+    }
+
+    fun reportAnomaly(satelliteId: String) {
+        _satellites.value = satellites.value.map { satellite ->
+            if (satellite.idSatellite == satelliteId) {
+                satellite.copy(statut = StatutSatellite.DEFAILLANT)
+            } else {
+                satellite
+            }
+        }
+
+        _selectedDetail.value = selectedDetail.value?.let { detail ->
+            if (detail.satellite.idSatellite == satelliteId) {
+                detail.copy(satellite = detail.satellite.copy(statut = StatutSatellite.DEFAILLANT))
+            } else {
+                detail
+            }
+        }
+
+        viewModelScope.launch {
+            runCatching { repository.markSatelliteDefaillant(satelliteId) }
+                .onFailure { _errorMessage.value = "Impossible d'enregistrer l'anomalie localement." }
+        }
     }
 
     fun getOperationalCountLabel(): String {
@@ -175,4 +266,30 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
     fun getResultCountLabel(): String = "${filteredSatellites.value.size} resultat(s)"
 
     fun getAllSatelliteIds(): List<String> = satellites.value.map { it.idSatellite }
+
+    private fun updateOfflineState(payload: RepositoryPayload<*>) {
+        if (payload.usesMockData) {
+            _isOfflineMode.value = true
+            _cacheAgeLabel.value = null
+            _mockDataWarning.value =
+                "Connexion a la base locale impossible et aucun cache local disponible. L'application utilise des donnees mockees."
+            return
+        }
+
+        if (!payload.isOffline) {
+            lastSyncAgeMinutes = 0L
+            _isOfflineMode.value = false
+            _cacheAgeLabel.value = null
+            _mockDataWarning.value = null
+            return
+        }
+
+        val wasAlreadyOffline = _isOfflineMode.value
+        _isOfflineMode.value = true
+        payload.cacheAgeMinutes?.let { age ->
+            lastSyncAgeMinutes = if (wasAlreadyOffline) minOf(lastSyncAgeMinutes ?: age, age) else age
+        }
+        _cacheAgeLabel.value = repository.formatLastSyncAge(lastSyncAgeMinutes)
+        _mockDataWarning.value = null
+    }
 }

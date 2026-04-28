@@ -8,6 +8,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.concurrent.TimeUnit
 
 object NanoOrbitApiFactory {
     fun create(baseUrl: String = BuildConfig.API_BASE_URL): NanoOrbitApi {
@@ -22,7 +23,13 @@ object NanoOrbitApiFactory {
 
         return Retrofit.Builder()
             .baseUrl(normalizeBaseUrl(baseUrl))
-            .client(OkHttpClient.Builder().build())
+            .client(
+                OkHttpClient.Builder()
+                    .connectTimeout(2, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
+                    .writeTimeout(5, TimeUnit.SECONDS)
+                    .build()
+            )
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
             .create(NanoOrbitApi::class.java)

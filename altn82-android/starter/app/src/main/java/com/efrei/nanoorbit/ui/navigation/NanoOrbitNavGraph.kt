@@ -82,7 +82,10 @@ fun NanoOrbitNavGraph(viewModel: NanoOrbitViewModel = viewModel()) {
                 DetailScreen(
                     satelliteId = entry.arguments?.getString("satelliteId").orEmpty(),
                     viewModel = viewModel,
-                    onBack = { navController.popBackStack() }
+                    onBack = {
+                        viewModel.clearDetail()
+                        navController.popBackStack()
+                    }
                 )
             }
         }

@@ -20,15 +20,18 @@ class NanoOrbitNotificationWorker(
     params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
-        createChannel()
-        val repository = NanoOrbitRepository(
-            satelliteDao = NanoOrbitDatabase.getInstance(applicationContext).satelliteDao(),
-            fenetreDao = NanoOrbitDatabase.getInstance(applicationContext).fenetreDao()
-        )
-        val payload = repository.getFenetresCacheFirst()
-        val upcoming = payload.data.firstOrNull {
-            Duration.between(LocalDateTime.now(), it.datetimeDebut).toMinutes() in 0..15
-        } ?: return Result.success()
+        val upcoming = runCatching {
+            createChannel()
+            val repository = NanoOrbitRepository(
+                satelliteDao = NanoOrbitDatabase.getInstance(applicationContext).satelliteDao(),
+                fenetreDao = NanoOrbitDatabase.getInstance(applicationContext).fenetreDao(),
+                stationDao = NanoOrbitDatabase.getInstance(applicationContext).stationDao(),
+                statusOverrideDao = NanoOrbitDatabase.getInstance(applicationContext).satelliteStatusOverrideDao()
+            )
+            repository.getFenetresLocalOrMock().data.firstOrNull {
+                Duration.between(LocalDateTime.now(), it.datetimeDebut).toMinutes() in 0..15
+            }
+        }.getOrNull() ?: return Result.success()
 
         if (ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED

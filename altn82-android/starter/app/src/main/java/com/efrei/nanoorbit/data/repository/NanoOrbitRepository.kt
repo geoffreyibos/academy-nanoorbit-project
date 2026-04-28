@@ -4,6 +4,9 @@ import com.efrei.nanoorbit.data.api.NanoOrbitApi
 import com.efrei.nanoorbit.data.api.NanoOrbitApiFactory
 import com.efrei.nanoorbit.data.db.FenetreDao
 import com.efrei.nanoorbit.data.db.SatelliteDao
+import com.efrei.nanoorbit.data.db.SatelliteStatusOverrideDao
+import com.efrei.nanoorbit.data.db.SatelliteStatusOverrideEntity
+import com.efrei.nanoorbit.data.db.StationDao
 import com.efrei.nanoorbit.data.db.toDomain
 import com.efrei.nanoorbit.data.db.toEntity
 import com.efrei.nanoorbit.data.models.FenetreCom
@@ -12,6 +15,8 @@ import com.efrei.nanoorbit.data.models.RepositoryPayload
 import com.efrei.nanoorbit.data.models.Satellite
 import com.efrei.nanoorbit.data.models.SatelliteDetail
 import com.efrei.nanoorbit.data.models.StationSol
+import com.efrei.nanoorbit.data.models.StatutSatellite
+import com.efrei.nanoorbit.data.models.StatutStation
 import com.efrei.nanoorbit.data.models.ValidationResult
 import java.time.Duration
 import java.time.LocalDateTime
@@ -19,10 +24,12 @@ import java.time.LocalDateTime
 class NanoOrbitRepository(
     private val satelliteDao: SatelliteDao,
     private val fenetreDao: FenetreDao,
+    private val stationDao: StationDao,
+    private val statusOverrideDao: SatelliteStatusOverrideDao,
     private val api: NanoOrbitApi = NanoOrbitApiFactory.create()
 ) {
-    suspend fun getSatellitesCacheFirst(): RepositoryPayload<List<Satellite>> {
-        val cached = satelliteDao.getAll()
+    suspend fun getFenetresLocalOrMock(): RepositoryPayload<List<FenetreCom>> {
+        val cached = fenetreDao.getAll()
         if (cached.isNotEmpty()) {
             val latestUpdate = cached.maxOf { it.updatedAtMillis }
             return RepositoryPayload(
@@ -31,17 +38,66 @@ class NanoOrbitRepository(
                 cacheAgeMinutes = Duration.between(
                     java.time.Instant.ofEpochMilli(latestUpdate),
                     java.time.Instant.now()
-                ).toMinutes()
+                ).toMinutes(),
+                usesMockData = false
+            )
+        }
+
+        return RepositoryPayload(
+            data = MockData.fenetres,
+            isOffline = true,
+            cacheAgeMinutes = null,
+            usesMockData = true
+        )
+    }
+
+    suspend fun getSatellitesCacheFirst(): RepositoryPayload<List<Satellite>> {
+        val cached = satelliteDao.getAll()
+        if (cached.isNotEmpty()) {
+            val latestUpdate = cached.maxOf { it.updatedAtMillis }
+            return RepositoryPayload(
+                data = applyStatusOverrides(cached.map { it.toDomain() }),
+                isOffline = true,
+                cacheAgeMinutes = Duration.between(
+                    java.time.Instant.ofEpochMilli(latestUpdate),
+                    java.time.Instant.now()
+                ).toMinutes(),
+                usesMockData = false
             )
         }
         return refreshSatellites()
     }
 
     suspend fun refreshSatellites(): RepositoryPayload<List<Satellite>> {
-        val remote = api.getSatellites().map { it.toDomain() }
-        val updatedAt = System.currentTimeMillis()
-        satelliteDao.upsertAll(remote.map { it.toEntity(updatedAt) })
-        return RepositoryPayload(remote, isOffline = false, cacheAgeMinutes = 0L)
+        return runCatching {
+            val remote = applyStatusOverrides(api.getSatellites().map { it.toDomain() })
+            val updatedAt = System.currentTimeMillis()
+            satelliteDao.upsertAll(remote.map { it.toEntity(updatedAt) })
+            RepositoryPayload(
+                data = remote,
+                isOffline = false,
+                cacheAgeMinutes = 0L,
+                usesMockData = false
+            )
+        }.getOrElse {
+            val cached = satelliteDao.getAll()
+            if (cached.isNotEmpty()) {
+                val latestUpdate = cached.maxOf { it.updatedAtMillis }
+                RepositoryPayload(
+                    data = applyStatusOverrides(cached.map { it.toDomain() }),
+                    isOffline = true,
+                    cacheAgeMinutes = ageInMinutes(latestUpdate),
+                    usesMockData = false
+                )
+            } else {
+                RepositoryPayload(
+                    data = applyStatusOverrides(MockData.satellites),
+                    isOffline = true,
+                    cacheAgeMinutes = null,
+                    usesMockData = true
+                )
+            }
+        }
     }
 
     suspend fun getFenetresCacheFirst(): RepositoryPayload<List<FenetreCom>> {
@@ -54,55 +110,160 @@ class NanoOrbitRepository(
                 cacheAgeMinutes = Duration.between(
                     java.time.Instant.ofEpochMilli(latestUpdate),
                     java.time.Instant.now()
-                ).toMinutes()
+                ).toMinutes(),
+                usesMockData = false
             )
         }
         return refreshFenetres()
     }
 
     suspend fun refreshFenetres(): RepositoryPayload<List<FenetreCom>> {
-        val remote = api.getFenetres().map { it.toDomain() }
-        val upcoming = remote.filter {
-            Duration.between(LocalDateTime.now(), it.datetimeDebut).toDays() <= 7 || it.datetimeDebut.isBefore(LocalDateTime.now())
+        return runCatching {
+            val remote = api.getFenetres().map { it.toDomain() }
+            val upcoming = remote.filterRelevantFenetres()
+            val updatedAt = System.currentTimeMillis()
+            fenetreDao.upsertAll(upcoming.map { it.toEntity(updatedAt) })
+            RepositoryPayload(
+                data = upcoming,
+                isOffline = false,
+                cacheAgeMinutes = 0L,
+                usesMockData = false
+            )
+        }.getOrElse {
+            val cached = fenetreDao.getAll()
+            if (cached.isNotEmpty()) {
+                val latestUpdate = cached.maxOf { it.updatedAtMillis }
+                RepositoryPayload(
+                    data = cached.map { it.toDomain() },
+                    isOffline = true,
+                    cacheAgeMinutes = ageInMinutes(latestUpdate),
+                    usesMockData = false
+                )
+            } else {
+                RepositoryPayload(
+                    data = MockData.fenetres.filterRelevantFenetres(),
+                    isOffline = true,
+                    cacheAgeMinutes = null,
+                    usesMockData = true
+                )
+            }
         }
-        val updatedAt = System.currentTimeMillis()
-        fenetreDao.upsertAll(upcoming.map { it.toEntity(updatedAt) })
-        return RepositoryPayload(upcoming, isOffline = false, cacheAgeMinutes = 0L)
     }
 
-    fun getStations(): List<StationSol> = MockData.stations
-
-    fun getSatelliteDetail(satelliteId: String): SatelliteDetail? = MockData.detailForSatellite(satelliteId)
-
-    fun getOrbiteTypeForSatellite(idSatellite: String): String {
-        val satellite = MockData.satelliteIndex[idSatellite] ?: return ""
-        return "Orbite ${satellite.idOrbite}"
+    suspend fun getStationsCacheFirst(): RepositoryPayload<List<StationSol>> {
+        val cached = stationDao.getAll()
+        if (cached.isNotEmpty()) {
+            val latestUpdate = cached.maxOf { it.updatedAtMillis }
+            return RepositoryPayload(
+                data = cached.map { it.toDomain() },
+                isOffline = true,
+                cacheAgeMinutes = ageInMinutes(latestUpdate),
+                usesMockData = false
+            )
+        }
+        return refreshStations()
     }
 
-    // ALTN83 Phase 1 Q3 mirror: the cache-first strategy lets the app keep planning and consulting
-    // local data even if the central Oracle service is unavailable.
-    fun formatCacheAge(cacheAgeMinutes: Long?): String? = cacheAgeMinutes?.let { "Mis a jour il y a $it min" }
+    suspend fun refreshStations(): RepositoryPayload<List<StationSol>> =
+        runCatching {
+            val remote = api.getStations().map { it.toDomain() }
+            val updatedAt = System.currentTimeMillis()
+            stationDao.upsertAll(remote.map { it.toEntity(updatedAt) })
+            RepositoryPayload(
+                data = remote,
+                isOffline = false,
+                cacheAgeMinutes = 0L,
+                usesMockData = false
+            )
+        }.getOrElse {
+            val cached = stationDao.getAll()
+            if (cached.isNotEmpty()) {
+                val latestUpdate = cached.maxOf { it.updatedAtMillis }
+                RepositoryPayload(
+                    data = cached.map { it.toDomain() },
+                    isOffline = true,
+                    cacheAgeMinutes = ageInMinutes(latestUpdate),
+                    usesMockData = false
+                )
+            } else {
+                RepositoryPayload(
+                    data = MockData.stations,
+                    isOffline = true,
+                    cacheAgeMinutes = null,
+                    usesMockData = true
+                )
+            }
+        }
+
+    suspend fun getSatelliteDetail(satelliteId: String): SatelliteDetail? =
+        runCatching { api.getSatelliteDetail(satelliteId)?.toDomain() }
+            .getOrElse { MockData.detailForSatellite(satelliteId) }
+            ?: MockData.detailForSatellite(satelliteId)
+
+    fun formatLastSyncAge(cacheAgeMinutes: Long?): String? =
+        cacheAgeMinutes?.let { "Derniere synchronisation reussie il y a $it min" }
 
     fun validateFenetreCreation(
-        satelliteId: String,
-        stationCode: String,
+        satellite: Satellite?,
+        station: StationSol?,
         dureeSecondes: Int
     ): ValidationResult {
         if (dureeSecondes !in 1..900) {
             return ValidationResult(false, "Duree invalide : entre 1 et 900 secondes")
         }
 
-        val satellite = MockData.satelliteIndex[satelliteId]
         if (satellite == null) {
             return ValidationResult(false, "Satellite inconnu")
         }
-        if (satellite.statut == com.efrei.nanoorbit.data.models.StatutSatellite.DESORBITE) {
+        if (satellite.statut == StatutSatellite.DESORBITE) {
             return ValidationResult(false, "Fenetre refusee : satellite desorbite")
         }
-        if (stationCode.isBlank()) {
-            return ValidationResult(false, "Station invalide")
+        if (station == null) {
+            return ValidationResult(false, "Station inconnue")
+        }
+        if (station.statut == StatutStation.MAINTENANCE) {
+            return ValidationResult(false, "Fenetre refusee : station en maintenance")
         }
 
         return ValidationResult(true)
+    }
+
+    suspend fun markSatelliteDefaillant(satelliteId: String) {
+        val now = System.currentTimeMillis()
+        statusOverrideDao.upsert(
+            SatelliteStatusOverrideEntity(
+                idSatellite = satelliteId,
+                statut = StatutSatellite.DEFAILLANT.name,
+                updatedAtMillis = now
+            )
+        )
+        satelliteDao.updateStatus(
+            idSatellite = satelliteId,
+            statut = StatutSatellite.DEFAILLANT.name,
+            updatedAtMillis = now
+        )
+    }
+
+    private fun ageInMinutes(updatedAtMillis: Long): Long =
+        Duration.between(
+            java.time.Instant.ofEpochMilli(updatedAtMillis),
+            java.time.Instant.now()
+        ).toMinutes()
+
+    private fun List<FenetreCom>.filterRelevantFenetres(): List<FenetreCom> = filter {
+        Duration.between(LocalDateTime.now(), it.datetimeDebut).toDays() <= 7 ||
+            it.datetimeDebut.isBefore(LocalDateTime.now())
+    }
+
+    private suspend fun applyStatusOverrides(satellites: List<Satellite>): List<Satellite> {
+        val overrides = statusOverrideDao.getAll().associateBy { it.idSatellite }
+        if (overrides.isEmpty()) {
+            return satellites
+        }
+        return satellites.map { satellite ->
+            overrides[satellite.idSatellite]?.let { override ->
+                satellite.copy(statut = StatutSatellite.valueOf(override.statut))
+            } ?: satellite
+        }
     }
 }

@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +41,7 @@ fun DashboardScreen(
     val selectedStatut by viewModel.selectedStatut.collectAsStateWithLifecycle()
     val isOffline by viewModel.isOfflineMode.collectAsStateWithLifecycle()
     val cacheAge by viewModel.cacheAgeLabel.collectAsStateWithLifecycle()
+    val mockDataWarning by viewModel.mockDataWarning.collectAsStateWithLifecycle()
 
     // Q1: LazyColumn only composes the visible cards. A plain Column with 100 satellites would
     // inflate every row immediately, increasing memory cost and slowing scroll/recomposition.
@@ -97,10 +100,23 @@ fun DashboardScreen(
             items(satellites, key = { it.idSatellite }) { satellite ->
                 SatelliteCard(
                     satellite = satellite,
-                    orbiteLabel = viewModel.getDetail(satellite.idSatellite)?.orbite?.typeOrbite?.name.orEmpty(),
+                    orbiteLabel = satellite.orbiteType.orEmpty(),
                     onClick = { onSatelliteClick(satellite.idSatellite) }
                 )
             }
         }
+    }
+
+    if (mockDataWarning != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::clearMockDataWarning,
+            title = { Text("Mode mock") },
+            text = { Text(mockDataWarning.orEmpty()) },
+            confirmButton = {
+                TextButton(onClick = viewModel::clearMockDataWarning) {
+                    Text("OK")
+                }
+            }
+        )
     }
 }

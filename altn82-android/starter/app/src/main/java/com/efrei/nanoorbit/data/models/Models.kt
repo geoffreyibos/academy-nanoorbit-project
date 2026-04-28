@@ -36,6 +36,7 @@ data class Satellite(
     val statut: StatutSatellite,
     val formatCubesat: FormatCubeSat,
     val idOrbite: Int,
+    val orbiteType: String? = null,
     val dateLancement: LocalDate? = null,
     val masse: Double? = null,
     val dureeViePrevueMois: Int? = null,
@@ -129,7 +130,8 @@ data class SatelliteDetail(
 data class RepositoryPayload<T>(
     val data: T,
     val isOffline: Boolean = false,
-    val cacheAgeMinutes: Long? = null
+    val cacheAgeMinutes: Long? = null,
+    val usesMockData: Boolean = false
 )
 
 data class ValidationResult(

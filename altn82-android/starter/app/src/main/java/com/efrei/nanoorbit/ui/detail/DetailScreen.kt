@@ -20,12 +20,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.efrei.nanoorbit.ui.components.InstrumentItem
 import com.efrei.nanoorbit.ui.components.StatusBadge
 import com.efrei.nanoorbit.data.models.StatutMission
@@ -38,9 +40,16 @@ fun DetailScreen(
     viewModel: NanoOrbitViewModel,
     onBack: () -> Unit
 ) {
-    val detail = viewModel.getDetail(satelliteId)
+    val detail by viewModel.selectedDetail.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isDetailLoading.collectAsStateWithLifecycle()
     var anomalyText by remember { mutableStateOf("") }
+    var anomalyError by remember { mutableStateOf(false) }
+    var anomalyConfirmation by remember { mutableStateOf<String?>(null) }
     var showDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(satelliteId) {
+        viewModel.loadDetail(satelliteId)
+    }
 
     Scaffold(
         topBar = {
@@ -54,7 +63,16 @@ fun DetailScreen(
             )
         }
     ) { innerPadding ->
-        if (detail == null) {
+        if (isLoading && detail == null) {
+            Column(modifier = Modifier.padding(innerPadding).padding(16.dp)) {
+                Text("Chargement du detail...")
+            }
+            return@Scaffold
+        }
+
+        val currentDetail = detail
+
+        if (currentDetail == null) {
             Column(modifier = Modifier.padding(innerPadding).padding(16.dp)) {
                 Text("Satellite introuvable")
             }
@@ -71,27 +89,27 @@ fun DetailScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     Text("Statut", style = MaterialTheme.typography.titleMedium)
-                    StatusBadge(detail.satellite.statut)
-                    Text("Format : ${detail.satellite.formatCubesat.label}")
-                    Text("Orbite : ${detail.orbite?.typeOrbite?.name.orEmpty()} - ${detail.orbite?.altitude ?: "-"} km")
+                    StatusBadge(currentDetail.satellite.statut)
+                    Text("Format : ${currentDetail.satellite.formatCubesat.label}")
+                    Text("Orbite : ${currentDetail.orbite?.typeOrbite?.name.orEmpty()} - ${currentDetail.orbite?.altitude ?: "-"} km")
                 }
             }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Telemetrie", style = MaterialTheme.typography.titleMedium)
-                    Text("Masse : ${detail.satellite.masse ?: "-"} kg")
-                    Text("Capacite batterie : ${detail.satellite.capaciteBatterie ?: "-"} Wh")
-                    Text("Vie restante estimee : ${detail.satellite.dureeVieRestanteMois() ?: "-"} mois")
+                    Text("Masse : ${currentDetail.satellite.masse ?: "-"} kg")
+                    Text("Capacite batterie : ${currentDetail.satellite.capaciteBatterie ?: "-"} Wh")
+                    Text("Vie restante estimee : ${currentDetail.satellite.dureeVieRestanteMois() ?: "-"} mois")
                 }
             }
             item { Text("Instruments embarques", style = MaterialTheme.typography.titleMedium) }
-            items(detail.instruments, key = { it.instrument.refInstrument }) {
+            items(currentDetail.instruments, key = { it.instrument.refInstrument }) {
                 InstrumentItem(it.instrument, it.etatFonctionnement)
             }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Missions", style = MaterialTheme.typography.titleMedium)
-                    detail.missions
+                    currentDetail.missions
                         .filter { it.mission.statutMission == StatutMission.ACTIVE }
                         .forEach { mission ->
                         Text("${mission.mission.nomMission} - ${mission.roleSatellite}")
@@ -99,8 +117,16 @@ fun DetailScreen(
                 }
             }
             item {
-                Button(onClick = { showDialog = true }) {
-                    Text("Signaler une anomalie")
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = {
+                        anomalyError = false
+                        showDialog = true
+                    }) {
+                        Text("Signaler une anomalie")
+                    }
+                    anomalyConfirmation?.let {
+                        Text(it, color = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
         }
@@ -113,17 +139,39 @@ fun DetailScreen(
             text = {
                 OutlinedTextField(
                     value = anomalyText,
-                    onValueChange = { anomalyText = it },
-                    label = { Text("Description libre") }
+                    onValueChange = {
+                        anomalyText = it
+                        anomalyError = false
+                    },
+                    label = { Text("Description libre") },
+                    isError = anomalyError,
+                    supportingText = {
+                        if (anomalyError) {
+                            Text("La description est obligatoire")
+                        }
+                    }
                 )
             },
             confirmButton = {
-                Button(onClick = { showDialog = false }) {
+                Button(onClick = {
+                    if (anomalyText.isBlank()) {
+                        anomalyError = true
+                    } else {
+                        viewModel.reportAnomaly(satelliteId)
+                        anomalyConfirmation = "Anomalie signalee : satellite passe en statut Defaillant"
+                        anomalyText = ""
+                        anomalyError = false
+                        showDialog = false
+                    }
+                }) {
                     Text("Envoyer")
                 }
             },
             dismissButton = {
-                Button(onClick = { showDialog = false }) {
+                Button(onClick = {
+                    anomalyError = false
+                    showDialog = false
+                }) {
                     Text("Annuler")
                 }
             }

@@ -12,6 +12,9 @@ interface SatelliteDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(items: List<SatelliteEntity>)
+
+    @Query("UPDATE satellites SET statut = :statut, updatedAtMillis = :updatedAtMillis WHERE idSatellite = :idSatellite")
+    suspend fun updateStatus(idSatellite: String, statut: String, updatedAtMillis: Long)
 }
 
 @Dao
@@ -21,4 +24,22 @@ interface FenetreDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(items: List<FenetreEntity>)
+}
+
+@Dao
+interface StationDao {
+    @Query("SELECT * FROM stations_sol ORDER BY nomStation")
+    suspend fun getAll(): List<StationEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(items: List<StationEntity>)
+}
+
+@Dao
+interface SatelliteStatusOverrideDao {
+    @Query("SELECT * FROM satellite_status_overrides")
+    suspend fun getAll(): List<SatelliteStatusOverrideEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(item: SatelliteStatusOverrideEntity)
 }
