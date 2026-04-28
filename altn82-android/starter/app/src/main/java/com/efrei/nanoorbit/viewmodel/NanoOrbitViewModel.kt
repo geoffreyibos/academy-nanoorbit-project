@@ -24,8 +24,7 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
     private val repository = NanoOrbitRepository(
         satelliteDao = NanoOrbitDatabase.getInstance(application).satelliteDao(),
         fenetreDao = NanoOrbitDatabase.getInstance(application).fenetreDao(),
-        stationDao = NanoOrbitDatabase.getInstance(application).stationDao(),
-        statusOverrideDao = NanoOrbitDatabase.getInstance(application).satelliteStatusOverrideDao()
+        stationDao = NanoOrbitDatabase.getInstance(application).stationDao()
     )
 
     private val _satellites = MutableStateFlow<List<Satellite>>(emptyList())
@@ -233,29 +232,6 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun clearMockDataWarning() {
         _mockDataWarning.value = null
-    }
-
-    fun reportAnomaly(satelliteId: String) {
-        _satellites.value = satellites.value.map { satellite ->
-            if (satellite.idSatellite == satelliteId) {
-                satellite.copy(statut = StatutSatellite.DEFAILLANT)
-            } else {
-                satellite
-            }
-        }
-
-        _selectedDetail.value = selectedDetail.value?.let { detail ->
-            if (detail.satellite.idSatellite == satelliteId) {
-                detail.copy(satellite = detail.satellite.copy(statut = StatutSatellite.DEFAILLANT))
-            } else {
-                detail
-            }
-        }
-
-        viewModelScope.launch {
-            runCatching { repository.markSatelliteDefaillant(satelliteId) }
-                .onFailure { _errorMessage.value = "Impossible d'enregistrer l'anomalie localement." }
-        }
     }
 
     fun getOperationalCountLabel(): String {

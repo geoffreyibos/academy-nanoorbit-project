@@ -25,8 +25,7 @@ class NanoOrbitNotificationWorker(
             val repository = NanoOrbitRepository(
                 satelliteDao = NanoOrbitDatabase.getInstance(applicationContext).satelliteDao(),
                 fenetreDao = NanoOrbitDatabase.getInstance(applicationContext).fenetreDao(),
-                stationDao = NanoOrbitDatabase.getInstance(applicationContext).stationDao(),
-                statusOverrideDao = NanoOrbitDatabase.getInstance(applicationContext).satelliteStatusOverrideDao()
+                stationDao = NanoOrbitDatabase.getInstance(applicationContext).stationDao()
             )
             repository.getFenetresLocalOrMock().data.firstOrNull {
                 Duration.between(LocalDateTime.now(), it.datetimeDebut).toMinutes() in 0..15

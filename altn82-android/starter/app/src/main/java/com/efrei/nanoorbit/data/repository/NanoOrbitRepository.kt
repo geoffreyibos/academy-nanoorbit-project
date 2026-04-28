@@ -4,8 +4,6 @@ import com.efrei.nanoorbit.data.api.NanoOrbitApi
 import com.efrei.nanoorbit.data.api.NanoOrbitApiFactory
 import com.efrei.nanoorbit.data.db.FenetreDao
 import com.efrei.nanoorbit.data.db.SatelliteDao
-import com.efrei.nanoorbit.data.db.SatelliteStatusOverrideDao
-import com.efrei.nanoorbit.data.db.SatelliteStatusOverrideEntity
 import com.efrei.nanoorbit.data.db.StationDao
 import com.efrei.nanoorbit.data.db.toDomain
 import com.efrei.nanoorbit.data.db.toEntity
@@ -25,7 +23,6 @@ class NanoOrbitRepository(
     private val satelliteDao: SatelliteDao,
     private val fenetreDao: FenetreDao,
     private val stationDao: StationDao,
-    private val statusOverrideDao: SatelliteStatusOverrideDao,
     private val api: NanoOrbitApi = NanoOrbitApiFactory.create()
 ) {
     suspend fun getFenetresLocalOrMock(): RepositoryPayload<List<FenetreCom>> {
@@ -56,7 +53,7 @@ class NanoOrbitRepository(
         if (cached.isNotEmpty()) {
             val latestUpdate = cached.maxOf { it.updatedAtMillis }
             return RepositoryPayload(
-                data = applyStatusOverrides(cached.map { it.toDomain() }),
+                data = cached.map { it.toDomain() },
                 isOffline = true,
                 cacheAgeMinutes = Duration.between(
                     java.time.Instant.ofEpochMilli(latestUpdate),
@@ -70,7 +67,7 @@ class NanoOrbitRepository(
 
     suspend fun refreshSatellites(): RepositoryPayload<List<Satellite>> {
         return runCatching {
-            val remote = applyStatusOverrides(api.getSatellites().map { it.toDomain() })
+            val remote = api.getSatellites().map { it.toDomain() }
             val updatedAt = System.currentTimeMillis()
             satelliteDao.upsertAll(remote.map { it.toEntity(updatedAt) })
             RepositoryPayload(
@@ -84,14 +81,14 @@ class NanoOrbitRepository(
             if (cached.isNotEmpty()) {
                 val latestUpdate = cached.maxOf { it.updatedAtMillis }
                 RepositoryPayload(
-                    data = applyStatusOverrides(cached.map { it.toDomain() }),
+                    data = cached.map { it.toDomain() },
                     isOffline = true,
                     cacheAgeMinutes = ageInMinutes(latestUpdate),
                     usesMockData = false
                 )
             } else {
                 RepositoryPayload(
-                    data = applyStatusOverrides(MockData.satellites),
+                    data = MockData.satellites,
                     isOffline = true,
                     cacheAgeMinutes = null,
                     usesMockData = true
@@ -228,22 +225,6 @@ class NanoOrbitRepository(
         return ValidationResult(true)
     }
 
-    suspend fun markSatelliteDefaillant(satelliteId: String) {
-        val now = System.currentTimeMillis()
-        statusOverrideDao.upsert(
-            SatelliteStatusOverrideEntity(
-                idSatellite = satelliteId,
-                statut = StatutSatellite.DEFAILLANT.name,
-                updatedAtMillis = now
-            )
-        )
-        satelliteDao.updateStatus(
-            idSatellite = satelliteId,
-            statut = StatutSatellite.DEFAILLANT.name,
-            updatedAtMillis = now
-        )
-    }
-
     private fun ageInMinutes(updatedAtMillis: Long): Long =
         Duration.between(
             java.time.Instant.ofEpochMilli(updatedAtMillis),
@@ -253,17 +234,5 @@ class NanoOrbitRepository(
     private fun List<FenetreCom>.filterRelevantFenetres(): List<FenetreCom> = filter {
         Duration.between(LocalDateTime.now(), it.datetimeDebut).toDays() <= 7 ||
             it.datetimeDebut.isBefore(LocalDateTime.now())
-    }
-
-    private suspend fun applyStatusOverrides(satellites: List<Satellite>): List<Satellite> {
-        val overrides = statusOverrideDao.getAll().associateBy { it.idSatellite }
-        if (overrides.isEmpty()) {
-            return satellites
-        }
-        return satellites.map { satellite ->
-            overrides[satellite.idSatellite]?.let { override ->
-                satellite.copy(statut = StatutSatellite.valueOf(override.statut))
-            } ?: satellite
-        }
     }
 }

@@ -53,13 +53,6 @@ data class StationEntity(
     val updatedAtMillis: Long
 )
 
-@Entity(tableName = "satellite_status_overrides")
-data class SatelliteStatusOverrideEntity(
-    @PrimaryKey val idSatellite: String,
-    val statut: String,
-    val updatedAtMillis: Long
-)
-
 fun SatelliteEntity.toDomain(): Satellite = Satellite(
     idSatellite = idSatellite,
     nomSatellite = nomSatellite,

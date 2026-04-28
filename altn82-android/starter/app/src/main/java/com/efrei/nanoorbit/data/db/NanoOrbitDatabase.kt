@@ -9,17 +9,15 @@ import androidx.room.RoomDatabase
     entities = [
         SatelliteEntity::class,
         FenetreEntity::class,
-        StationEntity::class,
-        SatelliteStatusOverrideEntity::class
+        StationEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class NanoOrbitDatabase : RoomDatabase() {
     abstract fun satelliteDao(): SatelliteDao
     abstract fun fenetreDao(): FenetreDao
     abstract fun stationDao(): StationDao
-    abstract fun satelliteStatusOverrideDao(): SatelliteStatusOverrideDao
 
     companion object {
         @Volatile

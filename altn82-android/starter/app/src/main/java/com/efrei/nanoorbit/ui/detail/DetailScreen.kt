@@ -157,8 +157,7 @@ fun DetailScreen(
                     if (anomalyText.isBlank()) {
                         anomalyError = true
                     } else {
-                        viewModel.reportAnomaly(satelliteId)
-                        anomalyConfirmation = "Anomalie signalee : satellite passe en statut Defaillant"
+                        anomalyConfirmation = "Anomalie signalee"
                         anomalyText = ""
                         anomalyError = false
                         showDialog = false
