@@ -373,8 +373,8 @@ code {
 <strong>Livrable</strong> : L1-D — Note de modélisation</p>
 <hr>
 <h2 id="partie-1--choix-de-modélisation">Partie 1 — Choix de modélisation</h2>
-<h3 id="choix-1--fenetre_com-comme-entité-association">Choix 1 — FENETRE_COM comme entité-association</h3>
-<p>On aurait pu modéliser FENETRE_COM comme une simple entité avec deux FK. On a préféré en faire une entité-association car les attributs qu'elle porte (<code>datetime_debut</code>, <code>duree_secondes</code>, <code>elevation_max_deg</code>, etc.) n'ont de sens que pour le couple (satellite, station) — ils décrivent l'événement de communication en lui-même, pas le satellite ni la station pris séparément.</p>
+<h3 id="choix-1--fenetre_com-comme-entité-association">Choix 1 — FENETRE_COM comme entité</h3>
+<p>On aurait pu modéliser FENETRE_COM comme une simple entité-association avec deux FK. On a préféré en faire une entité car les attributs qu'elle porte (<code>datetime_debut</code>, <code>duree_secondes</code>, <code>elevation_max_deg</code>, etc.) n'ont de sens que pour le couple (satellite, station) — ils décrivent l'événement de communication en lui-même, pas le satellite ni la station pris séparément.</p>
 <p>La clé technique <code>id_fenetre</code> n'apparaît qu'au MLD (pas au MCD) : elle est ajoutée uniquement pour simplifier le référencement dans les triggers de chevauchement temporel.</p>
 <hr>
 <h3 id="choix-2--pas-de-lien-direct-satellite--centre_controle">Choix 2 — Pas de lien direct SATELLITE ↔ CENTRE_CONTROLE</h3>
