@@ -182,19 +182,128 @@ action_deploy_all() {
 
 action_phase2() {
     header
-    run_script "Phase 2 (DDL + DML + Triggers)" "phase2"
+
+    local -a parts=(
+        "p2_01_ddl|[1/6] DDL — Creation des 11 tables"
+        "p2_02_dml|[2/6] DML — Donnees de reference"
+        "p2_03_t1|[3/6] T1 — trg_valider_fenetre (RG-S06 + RG-G03)"
+        "p2_04_t2|[4/6] T2 — trg_no_chevauchement (RG-F02 + RG-F03)"
+        "p2_05_t3_t4|[5/6] T3 + T4 — volume_realise + mission_terminee"
+        "p2_06_t5_controle|[6/6] T5 — historique_statut + controle schema"
+    )
+    local total=${#parts[@]}
+    local i=0
+
+    for entry in "${parts[@]}"; do
+        (( i++ ))
+        local file="${entry%%|*}"
+        local label="${entry#*|}"
+
+        echo
+        echo -e "  ${B}════════════════════════════════════════════════════${RST}"
+        echo -e "  ${BOLD}${W}  Phase 2 — $label${RST}"
+        echo -e "  ${B}════════════════════════════════════════════════════${RST}"
+        line_thin
+        docker exec "$CONTAINER" bash -c \
+            "sqlplus -S $APP_USER/$APP_PASS@localhost:1521/$PDB @$SCRIPTS_DIR/phase2/parts/$file.sql"
+        line_thin
+
+        if [ $i -lt $total ]; then
+            local next_label="${parts[$i]#*|}"
+            echo -e "\n  ${DIM}  Suivant → $next_label${RST}"
+            press_enter
+            clear_screen
+            header
+        fi
+    done
+
+    echo
+    ok_msg "Phase 2 — tous les paliers exécutés"
     press_enter
 }
 
 action_phase3() {
     header
-    run_script "Phase 3 (PL/SQL + Package)" "phase3"
+
+    local -a parts=(
+        "p3_01_blocs_anonymes|[1/6] Blocs anonymes (Ex.1 à 2)"
+        "p3_02_variables_types|[2/6] Variables et types — %TYPE, %ROWTYPE, NVL (Ex.3 à 4)"
+        "p3_03_controle|[3/6] Structures de contrôle — IF, CASE, LOOP (Ex.5 à 7)"
+        "p3_04_curseurs|[4/6] Curseurs — implicite, FOR, explicite, paramétré (Ex.8 à 11)"
+        "p3_05_procedures|[5/6] Procédures et fonctions standalone (Ex.12 à 16)"
+        "p3_06_package|[6/6] Package pkg_nanoOrbit + scénario de validation (BONUS)"
+    )
+    local total=${#parts[@]}
+    local i=0
+
+    for entry in "${parts[@]}"; do
+        (( i++ ))
+        local file="${entry%%|*}"
+        local label="${entry#*|}"
+
+        echo
+        echo -e "  ${B}════════════════════════════════════════════════════${RST}"
+        echo -e "  ${BOLD}${W}  Phase 3 — $label${RST}"
+        echo -e "  ${B}════════════════════════════════════════════════════${RST}"
+        line_thin
+        docker exec "$CONTAINER" bash -c \
+            "sqlplus -S $APP_USER/$APP_PASS@localhost:1521/$PDB @$SCRIPTS_DIR/phase3/parts/$file.sql"
+        line_thin
+
+        if [ $i -lt $total ]; then
+            local next_label="${parts[$i]#*|}"
+            echo -e "\n  ${DIM}  Suivant → $next_label${RST}"
+            press_enter
+            clear_screen
+            header
+        fi
+    done
+
+    echo
+    ok_msg "Phase 3 — tous les paliers exécutés"
     press_enter
 }
 
 action_phase4() {
     header
-    run_script "Phase 4 (Vues + CTE + Analytiques + MERGE + Index)" "phase4"
+
+    local -a parts=(
+        "p4_01_vues|[1/7] Vues — CREATE VIEW (V1 à V4)"
+        "p4_02_cte|[2/7] CTE avec WITH … AS (Ex.5 à 7)"
+        "p4_03_sousrequetes|[3/7] Sous-requêtes avancées (Ex.8 à 10)"
+        "p4_04_analytiques|[4/7] Fonctions analytiques OVER (Ex.11 à 14)"
+        "p4_05_merge|[5/7] MERGE INTO (Ex.15 à 16)"
+        "p4_06_index|[6/7] Index et EXPLAIN PLAN (Ex.17 à 19)"
+        "p4_07_rapport|[7/7] Rapport de pilotage final"
+    )
+    local total=${#parts[@]}
+    local i=0
+
+    for entry in "${parts[@]}"; do
+        (( i++ ))
+        local file="${entry%%|*}"
+        local label="${entry#*|}"
+
+        echo
+        echo -e "  ${B}════════════════════════════════════════════════════${RST}"
+        echo -e "  ${BOLD}${W}  Phase 4 — $label${RST}"
+        echo -e "  ${B}════════════════════════════════════════════════════${RST}"
+        line_thin
+        docker exec "$CONTAINER" bash -c \
+            "sqlplus -S $APP_USER/$APP_PASS@localhost:1521/$PDB @$SCRIPTS_DIR/phase4/parts/$file.sql"
+        line_thin
+
+        if [ $i -lt $total ]; then
+            local next_label="${parts[$i]#*|}"
+            echo -e "\n  ${DIM}  Suivant → $next_label${RST}"
+            press_enter
+            clear_screen
+            header
+        fi
+    done
+
+    echo
+    ok_msg "Phase 4 — toutes les parties exécutées"
     press_enter
 }
 
@@ -264,9 +373,9 @@ menu() {
         echo -e "  ${BOLD}${W}Conteneur${RST}                         ${BOLD}${W}Scripts — phases${RST}"
         line_thin
 
-        echo -e "  ${C}1${RST}  Démarrer le conteneur          ${C}4${RST}  Phase 2 seule ${DIM}(DDL + DML + Triggers)${RST}"
-        echo -e "  ${C}2${RST}  Arrêter le conteneur           ${C}5${RST}  Phase 3 seule ${DIM}(PL/SQL + Package)${RST}"
-        echo -e "  ${C}3${RST}  Reset complet ${DIM}(down -v)${RST}        ${C}6${RST}  Phase 4 seule ${DIM}(Vues + CTE + MERGE + Index)${RST}"
+        echo -e "  ${C}1${RST}  Démarrer le conteneur          ${C}4${RST}  Phase 2 interactive ${DIM}(palier par palier)${RST}"
+        echo -e "  ${C}2${RST}  Arrêter le conteneur           ${C}5${RST}  Phase 3 interactive ${DIM}(palier par palier)${RST}"
+        echo -e "  ${C}3${RST}  Reset complet ${DIM}(down -v)${RST}        ${C}6${RST}  Phase 4 interactive ${DIM}(partie par partie)${RST}"
         echo -e "                                 ${C}7${RST}  Déploiement complet ${DIM}(2 + 3 + 4)${RST}"
         echo
         echo -e "  ${BOLD}${W}Oracle${RST}"
