@@ -10,9 +10,9 @@
 
 ## Partie 1 — Choix de modélisation
 
-### Choix 1 — FENETRE_COM comme entité-association
+### Choix 1 — FENETRE_COM comme entité
 
-On aurait pu modéliser FENETRE_COM comme une simple entité avec deux FK. On a préféré en faire une entité-association car les attributs qu'elle porte (`datetime_debut`, `duree_secondes`, `elevation_max_deg`, etc.) n'ont de sens que pour le couple (satellite, station) — ils décrivent l'événement de communication en lui-même, pas le satellite ni la station pris séparément.
+On aurait pu modéliser FENETRE_COM comme une simple entité-association avec deux FK. On a préféré en faire une entité car les attributs qu'elle porte (`datetime_debut`, `duree_secondes`, `elevation_max_deg`, etc.) n'ont de sens que pour le couple (satellite, station) — ils décrivent l'événement de communication en lui-même, pas le satellite ni la station pris séparément.
 
 La clé technique `id_fenetre` n'apparaît qu'au MLD (pas au MCD) : elle est ajoutée uniquement pour simplifier le référencement dans les triggers de chevauchement temporel.
 
