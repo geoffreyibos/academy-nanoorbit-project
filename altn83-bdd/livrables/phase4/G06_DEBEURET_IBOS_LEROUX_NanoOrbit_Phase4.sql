@@ -7,11 +7,71 @@
 -- ============================================================
 
 SET SERVEROUTPUT ON SIZE UNLIMITED
-SET LINESIZE 150
-SET PAGESIZE 100
+SET LINESIZE 200
+SET PAGESIZE 50
 SET SQLBLANKLINES ON
 SET FEEDBACK OFF
 SET VERIFY OFF
+
+-- Formatage des colonnes (valable pour toute la session SQL*Plus)
+COLUMN id_satellite             FORMAT A10
+COLUMN nom_satellite            FORMAT A20
+COLUMN nom_station              FORMAT A25
+COLUMN nom_centre               FORMAT A22
+COLUMN id_mission               FORMAT A14
+COLUMN nom_mission              FORMAT A20
+COLUMN statut_mission           FORMAT A12
+COLUMN orbite                   FORMAT A14
+COLUMN types_orbites            FORMAT A10
+COLUMN statut                   FORMAT A14
+COLUMN date_debut               FORMAT A16
+COLUMN duree_fmt                FORMAT A10
+COLUMN debut                    FORMAT A16
+COLUMN derniere_fenetre         FORMAT A16
+COLUMN code_station             FORMAT A12
+COLUMN id_orbite                FORMAT A8
+COLUMN id_centre                FORMAT A8
+COLUMN station_la_plus_active   FORMAT A25
+COLUMN satellites_operationnels FORMAT A20
+COLUMN satellites_actifs        FORMAT A20
+COLUMN commentaire              FORMAT A52
+COLUMN libelle                  FORMAT A70
+COLUMN index_name               FORMAT A32
+COLUMN index_type               FORMAT A22
+COLUMN table_name               FORMAT A20
+COLUMN plan_table_output        FORMAT A120
+COLUMN "EVOL_VS_MOIS_PREC"      FORMAT A16
+COLUMN mois                     FORMAT A7
+COLUMN vol_precedent_mo         HEADING "VOL_PREC_MO"  FORMAT 99999
+COLUMN vol_suivant_mo           HEADING "VOL_SUIV_MO"  FORMAT 99999
+COLUMN evolution_pct            HEADING "EVOL_%"       FORMAT 9999.9
+COLUMN volume_total_mo          FORMAT 99999
+COLUMN volume_donnees_mo        FORMAT 99999
+COLUMN volume_mo                FORMAT 99999
+COLUMN volume_moyen_mo          FORMAT 99999.9
+COLUMN cumul_mo                 FORMAT 99999
+COLUMN moy_mobile_3             FORMAT 99999.9
+COLUMN moy_constellation_mo     FORMAT 99999.9
+COLUMN ecart_moyenne            FORMAT 99999
+COLUMN ecart_moyenne_mo         FORMAT 99999.9
+COLUMN part_pct                 HEADING "PART_%"       FORMAT 999.9
+COLUMN nb_instruments           FORMAT 99    HEADING "NB_INST"
+COLUMN nb_fenetres              FORMAT 999
+COLUMN nb_satellites            FORMAT 99    HEADING "NB_SATS"
+COLUMN nb_fenetres_realisees    FORMAT 99    HEADING "NB_FEN"
+COLUMN batterie_wh              FORMAT 9999
+COLUMN rang                     FORMAT 999
+COLUMN rang_global              FORMAT 999
+COLUMN dense_rang               FORMAT 999
+COLUMN rang_par_orbite          FORMAT 999
+COLUMN row_num                  FORMAT 999
+COLUMN type_orbite              FORMAT A6   HEADING "TYPE"
+COLUMN "PART_%"                 FORMAT 999.9
+COLUMN status                   FORMAT A8
+COLUMN date_aff                 FORMAT A12
+COLUMN ancien_statut            FORMAT A14  HEADING "ANCIEN_STATUT"
+COLUMN nouveau_statut           FORMAT A14  HEADING "NOUVEAU_STATUT"
+COLUMN date_chgt                FORMAT A20
 
 PROMPT
 PROMPT ════════════════════════════════════════════
@@ -680,7 +740,7 @@ ORDER BY a.id_centre, a.code_station;
 
 PROMPT
 PROMPT ════════════════════════════════════════════
-PROMPT  [PARTIE 6 — BONUS] Index & EXPLAIN PLAN
+PROMPT  [PARTIE 6 — BONUS] Index et EXPLAIN PLAN
 PROMPT ════════════════════════════════════════════
 
 
