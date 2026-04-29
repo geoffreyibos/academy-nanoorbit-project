@@ -225,6 +225,10 @@ class NanoOrbitRepository(
         return ValidationResult(true)
     }
 
+    suspend fun saveLocalFenetre(fenetre: FenetreCom) {
+        fenetreDao.upsertAll(listOf(fenetre.toEntity(System.currentTimeMillis())))
+    }
+
     private fun ageInMinutes(updatedAtMillis: Long): Long =
         Duration.between(
             java.time.Instant.ofEpochMilli(updatedAtMillis),

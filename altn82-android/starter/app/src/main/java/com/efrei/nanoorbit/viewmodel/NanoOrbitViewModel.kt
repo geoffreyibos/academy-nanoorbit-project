@@ -8,9 +8,11 @@ import com.efrei.nanoorbit.data.models.FenetreCom
 import com.efrei.nanoorbit.data.models.RepositoryPayload
 import com.efrei.nanoorbit.data.models.Satellite
 import com.efrei.nanoorbit.data.models.SatelliteDetail
+import com.efrei.nanoorbit.data.models.StatutFenetre
 import com.efrei.nanoorbit.data.models.StatutSatellite
 import com.efrei.nanoorbit.data.models.StationSol
 import com.efrei.nanoorbit.data.repository.NanoOrbitRepository
+import java.time.LocalDateTime
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -226,6 +228,39 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
             .message ?: "Validation OK : fenetre planifiable"
     }
 
+    fun createPlanningFenetre(satelliteId: String, stationCode: String, dureeSecondes: Int) {
+        viewModelScope.launch {
+            val satellite = satellites.value.firstOrNull { it.idSatellite == satelliteId }
+            val station = stations.value.firstOrNull { it.codeStation == stationCode }
+            val validation = repository.validateFenetreCreation(satellite, station, dureeSecondes)
+            if (!validation.isValid) {
+                _planningValidationMessage.value = validation.message
+                return@launch
+            }
+
+            val newFenetre = FenetreCom(
+                idFenetre = nextLocalFenetreId(),
+                datetimeDebut = LocalDateTime.now().plusMinutes(15),
+                dureeSecondes = dureeSecondes,
+                elevationMax = 0.0,
+                statut = StatutFenetre.PLANIFIEE,
+                idSatellite = satelliteId,
+                codeStation = stationCode,
+                volumeDonnees = null
+            )
+            val updatedFenetres = (_fenetres.value + newFenetre).sortedBy { it.datetimeDebut }
+            _fenetres.value = updatedFenetres
+            _selectedStationCode.value = stationCode
+            runCatching { repository.saveLocalFenetre(newFenetre) }
+                .onSuccess {
+                    _planningValidationMessage.value = "Fenetre creee localement et ajoutee au planning"
+                }
+                .onFailure {
+                    _planningValidationMessage.value = "Fenetre ajoutee au planning, mais non sauvegardee en cache local"
+                }
+        }
+    }
+
     fun clearPlanningMessage() {
         _planningValidationMessage.value = null
     }
@@ -242,6 +277,9 @@ class NanoOrbitViewModel(application: Application) : AndroidViewModel(applicatio
     fun getResultCountLabel(): String = "${filteredSatellites.value.size} resultat(s)"
 
     fun getAllSatelliteIds(): List<String> = satellites.value.map { it.idSatellite }
+
+    private fun nextLocalFenetreId(): Int =
+        ((_fenetres.value.maxOfOrNull { it.idFenetre } ?: 0) + 1).coerceAtLeast(10_000)
 
     private fun updateOfflineState(payload: RepositoryPayload<*>) {
         if (payload.usesMockData) {
