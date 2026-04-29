@@ -1,0 +1,10 @@
+{
+  "name": "nanoorbit-local-api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "start:bg": "powershell -ExecutionPolicy Bypass -File ..\\scripts\\start-nanoorbit-local-api.ps1",
+    "stop:bg": "powershell -ExecutionPolicy Bypass -File ..\\scripts\\stop-nanoorbit-local-api.ps1"
+  }
+}
