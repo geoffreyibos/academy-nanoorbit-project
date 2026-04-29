@@ -169,9 +169,9 @@ fun PlanningScreen(viewModel: NanoOrbitViewModel) {
             OutlinedTextField(value = duree, onValueChange = { duree = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Duree (1..900)") })
             Button(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = { viewModel.validatePlanningInput(satelliteId, stationCode, duree.toIntOrNull() ?: 0) }
+                onClick = { viewModel.createPlanningFenetre(satelliteId, stationCode, duree.toIntOrNull() ?: 0) }
             ) {
-                Text("Valider une nouvelle fenetre")
+                Text("Creer la fenetre")
             }
             Button(
                 modifier = Modifier.fillMaxWidth(),
@@ -191,7 +191,11 @@ fun PlanningScreen(viewModel: NanoOrbitViewModel) {
             validationMessage?.let {
                 Text(
                     text = it,
-                    color = if (it.startsWith("Validation OK")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    color = if (it.startsWith("Validation OK") || it.startsWith("Fenetre creee")) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    }
                 )
             }
         }
