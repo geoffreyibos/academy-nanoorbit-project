@@ -10,8 +10,9 @@ $apiDir = Join-Path $repoRoot "nanoorbit-local-api"
 $bddDir = Join-Path $repoRoot "altn83-bdd"
 $logDir = Join-Path $apiDir "logs"
 $pidFile = Join-Path $logDir "server.pid"
-$outLog = Join-Path $logDir "server.out.log"
-$errLog = Join-Path $logDir "server.err.log"
+$runStamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$outLog = Join-Path $logDir "server-$runStamp.out.log"
+$errLog = Join-Path $logDir "server-$runStamp.err.log"
 $dockerConfig = Join-Path $apiDir ".docker-config"
 $healthUrl = "http://localhost:8088/health"
 
@@ -43,6 +44,45 @@ function Get-RunningApiProcess {
     }
 }
 
+function Get-ApiProcessesByCommandLine {
+    Get-CimInstance Win32_Process -Filter "name = 'node.exe'" |
+        Where-Object {
+            $_.CommandLine -match "server\.js" -and
+            $_.CommandLine -like "*nanoorbit-local-api*"
+        } |
+        ForEach-Object {
+            Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+        }
+}
+
+function Get-ApiPortOwner {
+    try {
+        $connection = Get-NetTCPConnection -LocalPort 8088 -State Listen -ErrorAction Stop |
+            Select-Object -First 1
+        if ($connection) {
+            return Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue
+        }
+    } catch {
+        return $null
+    }
+    return $null
+}
+
+function Wait-ApiHealth {
+    param([int]$TimeoutSeconds)
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        if (Test-HttpOk -Url $healthUrl) {
+            return Invoke-WebRequest -UseBasicParsing -Uri $healthUrl -TimeoutSec 3 |
+                Select-Object -ExpandProperty Content
+        }
+        Start-Sleep -Seconds 1
+    }
+
+    return $null
+}
+
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     throw "Node.js est requis mais introuvable dans le PATH."
 }
@@ -66,13 +106,6 @@ if (Test-HttpOk -Url $healthUrl) {
     exit 0
 }
 
-$runningProcess = Get-RunningApiProcess
-if ($runningProcess) {
-    Write-Host "Processus API detecte (PID $($runningProcess.Id)) mais health KO. Arret du processus."
-    Stop-Process -Id $runningProcess.Id -Force
-    Remove-Item $pidFile -ErrorAction SilentlyContinue
-}
-
 $env:DOCKER_CONFIG = $dockerConfig
 
 if ($EnsureOracle) {
@@ -85,11 +118,41 @@ if ($EnsureOracle) {
     }
 }
 
-if (Test-Path $outLog) {
-    Remove-Item $outLog -Force
+$runningProcesses = @()
+$pidProcess = Get-RunningApiProcess
+if ($pidProcess) {
+    $runningProcesses += $pidProcess
 }
-if (Test-Path $errLog) {
-    Remove-Item $errLog -Force
+$runningProcesses += @(Get-ApiProcessesByCommandLine)
+$runningProcesses = @($runningProcesses | Where-Object { $_ } | Sort-Object Id -Unique)
+
+if ($runningProcesses.Count -gt 0) {
+    Write-Host "API deja lancee mais health KO. Attente d'Oracle/API pendant 60 secondes..."
+    $health = Wait-ApiHealth -TimeoutSeconds 60
+    if ($health) {
+        Set-Content -Path $pidFile -Value $runningProcesses[0].Id -Encoding ascii
+        Write-Host "API disponible sur $healthUrl"
+        Write-Host $health
+        exit 0
+    }
+
+    foreach ($apiProcess in $runningProcesses) {
+        Write-Host "Arret du processus API non healthy (PID $($apiProcess.Id))."
+        Stop-Process -Id $apiProcess.Id -Force -ErrorAction SilentlyContinue
+    }
+    Remove-Item $pidFile -ErrorAction SilentlyContinue
+}
+
+$portOwner = Get-ApiPortOwner
+if ($portOwner) {
+    Write-Host "Port 8088 occupe par '$($portOwner.ProcessName)' (PID $($portOwner.Id)) alors que l'API n'est pas healthy. Arret du processus."
+    Stop-Process -Id $portOwner.Id -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+
+    $portOwner = Get-ApiPortOwner
+    if ($portOwner) {
+        throw "Impossible de liberer le port 8088. Il est encore utilise par '$($portOwner.ProcessName)' (PID $($portOwner.Id))."
+    }
 }
 
 $process = Start-Process `
@@ -103,7 +166,7 @@ $process = Start-Process `
 
 Set-Content -Path $pidFile -Value $process.Id -Encoding ascii
 
-$deadline = (Get-Date).AddSeconds(30)
+$deadline = (Get-Date).AddSeconds(60)
 while ((Get-Date) -lt $deadline) {
     Start-Sleep -Seconds 1
 
